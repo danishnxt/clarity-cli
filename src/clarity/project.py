@@ -360,7 +360,7 @@ class Project:
         warnings: list[str] = []
         with self._write():
             item = self.worklog.by_id(item_id)
-            closed = item.status in CLOSED or item.status == "archived"
+            closed = item.status in CLOSED
             if closed and not reopen:
                 raise ClarityError(
                     f"item {item_id} is {item.status} — pick it back up with:\n"
@@ -393,7 +393,17 @@ class Project:
         link = folder / "wt" / self.root.name
         link.parent.mkdir(parents=True, exist_ok=True)
         if link.exists() or link.is_symlink():
-            return name, warnings
+            # Already attached. Moving it would mean tearing down a checkout someone may
+            # be sitting in, so refuse rather than quietly record a branch that isn't
+            # the one on disk — which is what this used to do.
+            if branch and branch != item.branch:
+                raise ClarityError(
+                    f"epoch {item.id} is already checked out at {link}\n"
+                    f"  on {item.branch or 'an unrecorded branch'}, not {branch}\n"
+                    f"  close the epoch, or remove that worktree yourself, to move it",
+                    code=4,
+                )
+            return item.branch or name, warnings
 
         exists = gitops.branch_exists(self.root, name)
         if exists:
@@ -562,8 +572,9 @@ class Project:
         views = {
             "active": IN_FLIGHT,
             "future": FUTURE,
+            # what `clarity status` prints: both groups, so the two surfaces agree
+            "current": IN_FLIGHT | FUTURE,
             "inactive": CLOSED,
-            "archived": {"archived"},
             "all": set(STATUSES),
         }
         if name == "item":

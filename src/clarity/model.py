@@ -5,16 +5,19 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-STATUSES = ["idea", "planned", "active", "blocked", "done", "abandoned", "archived"]
+STATUSES = ["idea", "planned", "active", "blocked", "done", "abandoned"]
 TYPES = ["feature", "fix", "improvement", "experiment", "chore"]
 
 OPEN = {"idea", "planned", "active", "blocked"}
 IN_FLIGHT = {"active", "blocked"}
 FUTURE = {"idea", "planned"}
+# Every closed state. There is no third: `abandoned` is what `close --abandon` sets,
+# and it prints as DROPPED. An `archived` status existed for a while with nothing to
+# reach it, which made the vocabulary bigger than the behaviour.
 CLOSED = {"done", "abandoned"}
 
 # A folder on disk is required from `planned` onwards.
-NEEDS_FOLDER = {"planned", "active", "blocked", "done", "abandoned", "archived"}
+NEEDS_FOLDER = {"planned", "active", "blocked", "done", "abandoned"}
 
 def today() -> str:
     return date.today().isoformat()

@@ -101,7 +101,7 @@ def load_yaml(path: Path) -> dict:
 
 
 class Worklog:
-    """objectives + every item, idea through archived."""
+    """objectives + every item, idea through closed."""
 
     def __init__(self, path: Path, objectives: Objectives, items: list[Item], extra: dict):
         self.path = path

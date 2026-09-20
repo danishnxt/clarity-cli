@@ -37,7 +37,7 @@ exit codes:
   0 ok · 1 error · 2 validation failed · 3 not a clarity project · 4 refused
 """
 
-QUERY_NAMES = "active | future | inactive | archived | all | item <id> | objectives | leases"
+QUERY_NAMES = "active | future | current | inactive | all | item <id> | objectives | leases"
 
 
 def envelope(command: str, data, warnings=None) -> str:
@@ -186,7 +186,7 @@ def build_parser() -> argparse.ArgumentParser:
                      "who holds a lease, and how far each branch trails main. None of "
                      "that is written down, so none of it can go stale.", section=look)
     p_status.add_argument("--all", action="store_true",
-                          help="include closed, abandoned and archived items")
+                          help="include closed and dropped items")
 
     p_q = _leaf(sub, "q", "named read-only query, for you or an agent",
                 f"Named queries: {QUERY_NAMES}", section=look)
@@ -411,7 +411,7 @@ def run(args) -> int:
         emit(args, "install", _install_data(done, "local"), _install_text(done, "local"))
 
     elif args.command == "status":
-        emit(args, "status", project.query("all" if args.all else "active"),
+        emit(args, "status", project.query("all" if args.all else "current"),
              project.status_text(show_all=args.all))
 
     elif args.command == "q":

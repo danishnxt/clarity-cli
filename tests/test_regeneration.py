@@ -10,9 +10,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from clarity import ClarityError, Project  # noqa: E402
+from clarity.model import STATUSES  # noqa: E402
 from clarity import store  # noqa: E402
 from clarity.cli import main  # noqa: E402
 
@@ -141,3 +144,52 @@ def test_plans_are_listed_when_asked_not_cached(tmp_path):
     (folder / "PLANS" / "late.md").write_text("# dropped in by hand\n")
     assert project.query("item", str(item.id))["plans"] == ["late.md"]
     assert "late.md" not in (folder / "EPOCH.md").read_text()
+
+
+def test_status_json_shows_what_status_prints(tmp_path):
+    """The human sees in-flight and up-next; --json used to return in-flight only."""
+    root = make_repo(tmp_path)
+    Project.init(root, name="proj")
+    project = Project.find(root)
+    idea = project.add("something later")
+    started = project.add("in progress", status="planned")
+    project.start(started.id)
+
+    ids = {i["id"] for i in project.query("current")["items"]}
+    assert ids == {idea.id, started.id}
+
+
+def test_rebranching_an_attached_epoch_is_refused(tmp_path):
+    """Recording a branch that isn't the one checked out is worse than refusing."""
+    root = make_repo(tmp_path)
+    Project.init(root, name="proj")
+    project = Project.find(root)
+    item = project.add("work", status="planned")
+    project.start(item.id)
+    was = project.worklog.by_id(item.id).branch
+
+    with pytest.raises(ClarityError) as caught:
+        project.start(item.id, branch="somewhere/else")
+    assert caught.value.code == 4
+    assert project.worklog.by_id(item.id).branch == was  # unchanged, not silently moved
+
+
+def test_every_status_is_reachable(tmp_path):
+    """No status exists that no command can set — `archived` used to."""
+    root = make_repo(tmp_path)
+    Project.init(root, name="proj")
+    project = Project.find(root)
+
+    reached = {"idea"}
+    reached.add(project.add("planned one", status="planned").status)
+    started = project.add("active one", status="planned")
+    reached.add(project.start(started.id)[0].status)
+    reached.add(project.block(started.id, "waiting").status)
+    done = project.add("done one", status="planned")
+    project.start(done.id)
+    reached.add(project.close(done.id, "shipped").status)
+    dropped = project.add("dropped one", status="planned")
+    project.start(dropped.id)
+    reached.add(project.close(dropped.id, "gave up", abandoned=True).status)
+
+    assert reached == set(STATUSES)

@@ -39,7 +39,6 @@ _LABEL = {
     "blocked": "BLOCKED",
     "done": "DONE",
     "abandoned": "DROPPED",
-    "archived": "ARCHIVED",
 }
 
 # Single-width glyphs on purpose: emoji are double-width in most terminals and would
@@ -51,7 +50,6 @@ _GLYPH = {
     "blocked": "⏸",
     "done": "✓",
     "abandoned": "✗",
-    "archived": "▪",
 }
 
 
@@ -106,9 +104,9 @@ def status_text(objectives: Objectives, items: list[Item], show_all: bool = Fals
     # What's finished is a stack, newest on top — recent work is what you look back for.
     groups = [("In flight", IN_FLIGHT, False), ("Up next", FUTURE, False)]
     if show_all:
-        # Closed is what you finished; dropped work sits with the archive, so scanning
+        # Closed is what you finished; dropped work gets its own group, so scanning
         # what shipped is never interleaved with what you gave up on.
-        groups += [("Closed", {"done"}, True), ("Archived", {"abandoned", "archived"}, True)]
+        groups += [("Closed", {"done"}, True), ("Dropped", {"abandoned"}, True)]
 
     for title, statuses, newest_first in groups:
         chosen = [i for i in items if i.status in statuses]
@@ -130,8 +128,8 @@ def status_text(objectives: Objectives, items: list[Item], show_all: bool = Fals
         out.append("")
 
     if not show_all:
-        closed = len([i for i in items if i.status in CLOSED or i.status == "archived"])
-        out.append(f"{closed} closed or archived — clarity status --all")
+        closed = len([i for i in items if i.status in CLOSED])
+        out.append(f"{closed} closed or dropped — clarity status --all")
     if not is_repo:
         out.append("not a git repo — epochs have no branch or worktree")
     return "\n".join(out).rstrip() + "\n"
