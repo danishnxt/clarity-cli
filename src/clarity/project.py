@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
-from datetime import datetime
 from pathlib import Path
 
 from . import agents, gitops, lease, render
@@ -32,7 +31,6 @@ from .store import (
 )
 
 EPOCHS = "EPOCHS"
-ACTIVE_LINK = ".active"  # hidden: a stable path, not a second folder in the sidebar
 LEARNINGS = "LEARNINGS"
 EPOCH_SUBDIRS = ("PLANS", "LOGS", "VIZ", "ANALYSIS")
 LOCK_FILE = "worklog.lock"
@@ -41,7 +39,6 @@ GITIGNORE_LINES = [
     "# clarity",
     "EPOCHS/*/wt/",
     "EPOCHS/*/.lease",
-    "EPOCHS/.active",  # whose epoch is current is local, like the lease — never shared
     ".clarity/cache/",
     ".clarity/worklog.lock",
 ]
@@ -91,7 +88,7 @@ class Project:
         if (root / CONFIG_DIR).is_dir() and (root / WORKLOG).exists():
             raise ClarityError(f"{root} is already a clarity project", code=4)
 
-        (root / CONFIG_DIR / "backups").mkdir(parents=True, exist_ok=True)
+        (root / CONFIG_DIR).mkdir(parents=True, exist_ok=True)
         (root / EPOCHS).mkdir(exist_ok=True)
         (root / LEARNINGS).mkdir(exist_ok=True)
 
@@ -236,8 +233,6 @@ class Project:
                 existing = path.read_text(encoding="utf-8") if path.exists() else None
                 write_if_changed(path, render.epoch_md(item, existing))
 
-        self._link_active()
-
     def install_agents(self, scope: str = "local", remove: bool = False) -> list[tuple[Path, str]]:
         """Put the clarity block in this repo's agent files, or in the user's own.
 
@@ -248,13 +243,6 @@ class Project:
         paths = agents.global_paths() if scope == "global" else agents.local_paths(self.root)
         return agents.install(paths, remove_instead=remove, scope=scope)
 
-    def backup(self, path: Path) -> Path:
-        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        dest = self.root / CONFIG_DIR / "backups" / f"{path.name}.{stamp}"
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(path.read_bytes())
-        return dest
-
     @staticmethod
     def _plans(folder: Path) -> list[str]:
         """Long-form docs living with the work. Listed, never parsed."""
@@ -263,9 +251,6 @@ class Project:
             return []
         return sorted(f.name for f in plans.iterdir() if f.is_file() and not f.name.startswith("."))
 
-    def _active_items(self) -> list[Item]:
-        return [i for i in self.worklog.items if i.status == "active" and i.folder]
-
     def path_of(self, item_id: int | None = None) -> Path:
         """Where the work is. `cd $(clarity path)`."""
         item = self.worklog.by_id(self.resolve_id(item_id))
@@ -273,27 +258,6 @@ class Project:
         if not folder or not folder.is_dir():
             raise ClarityError(f"item {item.id} has no folder on disk", code=4)
         return folder
-
-    def _link_active(self) -> None:
-        """Only points somewhere when exactly one epoch is active.
-
-        With two, any choice would be a lie, so the link is removed instead — its
-        absence is information.
-        """
-        legacy = self.epochs_dir / "ACTIVE"  # pre-0.1 visible link
-        if legacy.is_symlink():
-            legacy.unlink()
-
-        link = self.epochs_dir / ACTIVE_LINK
-        if link.is_symlink() or link.exists():
-            link.unlink()
-
-        active = self._active_items()
-        if len(active) != 1:
-            return
-        target = self.folder_of(active[0])
-        if target and target.is_dir():
-            link.symlink_to(os.path.relpath(target, link.parent))
 
     def ensure_gitignore(self) -> bool:
         """Called at init. Matches whole lines, so `!.clarity/cache/` is not a match."""

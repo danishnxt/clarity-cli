@@ -137,25 +137,6 @@ def test_env_var_decides_when_cwd_is_neutral(tmp_path, monkeypatch):
     assert exports["CLARITY_EPOCH_DIR"].endswith(project.worklog.by_id(ids[0]).folder)
 
 
-def test_active_link_only_when_unambiguous(tmp_path):
-    root = make_repo(tmp_path)
-    Project.init(root, name="proj")
-    link = root / "EPOCHS" / ".active"
-
-    project = Project.find(root)
-    first = project.add("cache warmup", status="planned")
-    project.start(first.id)
-    assert link.is_symlink()
-
-    second = project.add("lto build", status="planned")
-    project.start(second.id)
-    assert not link.exists()  # two active: pointing at either one would be a lie
-
-    project.close(second.id, outcome="dropped", abandoned=True)
-    assert link.is_symlink()
-    assert link.resolve() == (root / Project.find(root).worklog.by_id(first.id).folder)
-
-
 def test_our_own_lease_is_not_a_refusal(tmp_path, monkeypatch):
     """Identity is the declared name, not a process — the same agent reclaims freely."""
     monkeypatch.setenv("CLARITY_AGENT", "agent-alpha")

@@ -7,4 +7,3 @@ EPOCHS/*/wt/
 .clarity/cache/
 EPOCHS/*/.lease
 .clarity/worklog.lock
-EPOCHS/.active

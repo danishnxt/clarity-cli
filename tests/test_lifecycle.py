@@ -57,7 +57,6 @@ def test_idea_to_done(tmp_path):
     assert started.status == "active"
     assert started.branch == f"epoch/{item.id:03d}-flaky-test"
     assert (root / started.folder / "wt" / root.name).is_dir()
-    assert (root / "EPOCHS" / ".active").is_symlink()
 
     project.note(item.id, "tried a bigger timeout")
     project.block(item.id, "waiting upstream")

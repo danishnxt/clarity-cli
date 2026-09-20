@@ -41,9 +41,7 @@ clarity q active --json             # what an agent calls
 your_project/
 ├── .clarity/
 │   ├── config.yaml       style, behavior, hooks
-│   └── backups/          your pre-existing CLAUDE.md, if any
 ├── EPOCHS/
-│   ├── .active -> 001_…  hidden symlink: a stable path to the epoch in flight
 │   └── 001_2026-09-17__slug/
 │       ├── EPOCH.md      generated block; your notes go below the marker
 │       ├── PLANS/        long-form docs for this work; clarity q item lists them
@@ -93,7 +91,7 @@ It's a warning, not a lock: nothing stops a second agent editing the worktree, a
 doesn't pretend otherwise. Leases never expire and nothing checks whether the holder is
 alive — both were tried, both guessed wrong, and a lease that guesses wrong is worse than
 none. A stale lease waits for a person to `--steal` it, the way `terraform force-unlock`
-does. `EPOCHS/.active` only exists when exactly one epoch is active.
+does.
 
 ## Telling your agents
 
