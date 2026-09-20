@@ -1,0 +1,16 @@
+[project]
+name = "clarity"
+version = "0.1.0"
+description = "Project state you can read in one command, and your agent can query without crawling the tree."
+requires-python = ">=3.10"
+dependencies = ["PyYAML>=6.0"]
+
+[project.scripts]
+clarity = "clarity.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/clarity"]
