@@ -167,7 +167,8 @@ def build_parser() -> argparse.ArgumentParser:
           "workspace/, repos you only use go to 3rd_party/, and logs and results from "
           "work already done go into a baseline epoch, closed on arrival. The "
           "workspace/ repos are listed with `clarity repo add`, so epochs branch "
-          "them.\n\n"
+          "them. A root that is not a git repo becomes one, for clarity's own files "
+          "only, with nothing committed.\n\n"
           "The moves are proposed as a table and wait for your yes, because moving a "
           "build tree or a virtualenv costs a rebuild. Nothing in flight is added to "
           "the worklog — what you are working on now stays yours to write down. Point "
@@ -408,6 +409,9 @@ def _adopt_text(project, doc: Path) -> str:
         f'  "read {rel} and follow it"\n\n'
         f"Nothing in flight is added to the worklog. What you are working on now\n"
         f"stays yours to write down afterwards, a line at a time.\n"
+        + ("\nthe root was not a git repo, so it is one now — for clarity's own files\n"
+           "only. Nothing is committed; commit it when you want to keep or share it.\n"
+           if project.worklog.state_repo else "")
     )
 
 

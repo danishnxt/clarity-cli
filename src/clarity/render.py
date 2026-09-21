@@ -126,7 +126,7 @@ def _line(item: Item, leases: dict | None = None, cols: int | None = None,
 
 
 def status_text(objectives: Objectives, items: list[Item], show_all: bool = False,
-                leases: dict | None = None, is_repo: bool = True,
+                leases: dict | None = None, branches: bool = True,
                 stale: dict | None = None) -> str:
     """The one-screen view. Printed, never written down — see the module docstring."""
     cols = width()
@@ -164,8 +164,9 @@ def status_text(objectives: Objectives, items: list[Item], show_all: bool = Fals
     if not show_all:
         closed = len([i for i in items if i.status in CLOSED])
         out.append(f"{closed} closed or dropped — clarity status --all")
-    if not is_repo:
-        out.append("not a git repo — epochs have no branch or worktree")
+    if not branches:
+        out.append("no repo for epochs to branch — they get a folder, but no branch or "
+                   "worktree")
     return "\n".join(out).rstrip() + "\n"
 
 

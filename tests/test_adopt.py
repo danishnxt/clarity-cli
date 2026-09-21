@@ -8,6 +8,7 @@ Run: .venv/bin/python -m pytest -q
 """
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -51,6 +52,35 @@ def test_pending_is_the_files_presence_and_nothing_else(tmp_path):
     adopt.doc_path(root).unlink()
     assert not adopt.pending(root)
     assert Project.find(root).worklog.items == []  # nothing about it was written down
+
+
+def test_adopt_makes_a_non_repo_root_a_repo_for_clarity_only(tmp_path):
+    """git init and ignores, nothing committed — and epochs never branch it."""
+    root = tmp_path / "workspace-root"
+    (root / "workspace").mkdir(parents=True)
+    project, _ = Project.adopt(root)
+
+    assert (root / ".git").is_dir()
+    ignored = (root / ".gitignore").read_text().splitlines()
+    assert {"workspace/", "3rd_party/", "EPOCHS/*/LOGS/"} <= set(ignored)
+    log = subprocess.run(["git", "log"], cwd=str(root), capture_output=True, text=True)
+    assert log.returncode != 0  # no commits: that is the human's call
+
+    project = Project.find(root)
+    assert project.worklog.state_repo
+    epoch = project.add("first", status="planned")
+    started, _ = project.start(epoch.id)
+    assert started.branch is None  # nothing listed, and the root is state
+    assert not (root / started.folder / "wt").exists()
+    assert "no repo for epochs to branch" in project.status_text()
+
+
+def test_adopt_leaves_an_existing_repo_as_it_was(tmp_path):
+    """A root that is already a repo is code; it keeps being branched."""
+    root = make_repo(tmp_path)
+    project, _ = Project.adopt(root)
+    assert not project.worklog.state_repo
+    assert "workspace/" not in (root / ".gitignore").read_text().splitlines()
 
 
 def test_init_alone_leaves_no_procedure(tmp_path):

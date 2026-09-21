@@ -10,6 +10,7 @@ from . import adopt, agents, gitops, lease, render
 from .model import (
     CLOSED,
     DEFAULT_CONFIG,
+    FUTURE,
     IN_FLIGHT,
     NEEDS_FOLDER,
     STATUSES,
@@ -42,6 +43,15 @@ GITIGNORE_LINES = [
     "EPOCHS/*/.lease",
     ".clarity/cache/",
     ".clarity/worklog.lock",
+]
+
+# Added only when adopt makes the root a repo for clarity's own files. The nested
+# repos have histories of their own, and a baseline epoch's LOGS/ can run to
+# gigabytes — neither belongs in a repo that holds the worklog.
+STATE_REPO_IGNORES = [
+    "workspace/",
+    "3rd_party/",
+    "EPOCHS/*/LOGS/",
 ]
 
 
@@ -112,8 +122,18 @@ class Project:
         Refuses an existing clarity project for the same reason `init` does: the
         worklog already describes this repo, and a second pass over it would
         propose items for work that is already tracked.
+
+        A root that is not a repo becomes one, for clarity's own files only — else
+        the worklog and every epoch's notes live in no repo at all. Nothing is
+        committed: the worklog only grows, so when to snapshot or share it is the
+        human's call, not something to do on every command.
         """
         project = Project.init(root)
+        if not gitops.is_repo(project.root):
+            gitops.init(project.root)
+            project.ensure_gitignore(STATE_REPO_IGNORES)
+            with project._write():
+                project.worklog.state_repo = True
         return project, adopt.write_doc(project.root)
 
     # ---------- paths ----------
@@ -237,12 +257,12 @@ class Project:
             raise ClarityError(f"item {item.id} has no folder on disk", code=4)
         return folder
 
-    def ensure_gitignore(self) -> bool:
+    def ensure_gitignore(self, wanted: list[str] = GITIGNORE_LINES) -> bool:
         """Called at init. Matches whole lines, so `!.clarity/cache/` is not a match."""
         path = self.root / ".gitignore"
         existing = path.read_text(encoding="utf-8") if path.exists() else ""
         lines = existing.splitlines()
-        missing = [l for l in GITIGNORE_LINES if l not in lines]
+        missing = [l for l in wanted if l not in lines]
         if not missing:
             return False
         prefix = "" if not existing or existing.endswith("\n") else "\n"
@@ -290,6 +310,10 @@ class Project:
         target = Path(path).expanduser()
         target = (target if target.is_absolute() else Path.cwd() / target).resolve()
         root = self.root.resolve()
+        if target == root and self.worklog.state_repo:
+            raise ClarityError(
+                "that's the project root — it holds clarity's own files, not code to branch",
+                code=4)
         if target == root:
             raise ClarityError(
                 "that's the project root — with no repos listed, epochs branch it already",
@@ -407,11 +431,11 @@ class Project:
         """(repo, worktree path) for every repo this epoch branches.
 
         An epoch with a repo list branches exactly those; one without is the old
-        single-repo case and branches the root, if the root is a repo at all.
+        single-repo case and branches the root, if the root is a repo of code.
         """
         if item.repos is not None:
             return [(self.root / r, folder / "wt" / Path(r).name) for r in item.repos]
-        if gitops.is_repo(self.root):
+        if self.branches_root():
             return [(self.root, folder / "wt" / self.root.name)]
         return []
 
@@ -620,8 +644,20 @@ class Project:
         return item
 
     def block(self, item_id: int | None, reason: str) -> Item:
+        """active -> blocked. Blocking again just replaces the reason.
+
+        Only an in-flight epoch can wait on something. Anything else would land in
+        "In flight" without the folder, branch or start date that status implies,
+        and `unblock` would then make it active without ever having been started.
+        """
         with self._write():
             item = self.worklog.by_id(self.resolve_id(item_id))
+            if item.status not in IN_FLIGHT:
+                hint = (f"start it first: clarity epoch start {item.id}"
+                        if item.status in FUTURE else "it's closed")
+                raise ClarityError(
+                    f"item {item.id} is {item.status} — only an active epoch can be "
+                    f"blocked; {hint}", code=4)
             item.status = "blocked"
             item.blocked_reason = reason
         return item
@@ -672,8 +708,6 @@ class Project:
     # ---------- reading ----------
 
     def query(self, name: str, arg: str | None = None) -> dict:
-        from .model import FUTURE
-
         views = {
             "active": IN_FLIGHT,
             "future": FUTURE,
@@ -706,9 +740,13 @@ class Project:
             )
         return {"items": [i.to_dict() for i in self.worklog.with_status(views[name])]}
 
+    def branches_root(self) -> bool:
+        """The root is a repo, and one of code rather than clarity's state."""
+        return gitops.is_repo(self.root) and not self.worklog.state_repo
+
     def status_text(self, show_all: bool = False) -> str:
         return render.status_text(
             self.worklog.objectives, self.worklog.items, show_all, self.leases(),
-            is_repo=gitops.is_repo(self.root) or bool(self.worklog.repos),
+            branches=self.branches_root() or bool(self.worklog.repos),
             stale=self.stale_map(),
         )

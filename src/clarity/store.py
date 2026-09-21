@@ -105,15 +105,18 @@ class Worklog:
 
     `repos` is empty for a project that is itself one repo — epochs branch the root.
     A workspace holding several checkouts lists the ones its epochs branch instead.
+    `state_repo` marks a root that is a repo only to hold clarity's own files — adopt
+    makes one when the root was not a repo — so epochs never branch it.
     """
 
-    OWN = ("version", "objectives", "repos", "items")
+    OWN = ("version", "objectives", "repos", "state_repo", "items")
 
     def __init__(self, path: Path, objectives: Objectives, items: list[Item], extra: dict,
-                 repos: list[str] | None = None):
+                 repos: list[str] | None = None, state_repo: bool = False):
         self.path = path
         self.objectives = objectives
         self.repos = repos or []
+        self.state_repo = state_repo
         self.items = items
         self.extra = extra
 
@@ -123,7 +126,8 @@ class Worklog:
         items = [Item.from_dict(d) for d in (raw.get("items") or [])]
         extra = {k: v for k, v in raw.items() if k not in cls.OWN}
         return cls(path, Objectives.from_dict(raw.get("objectives")), items, extra,
-                   repos=list(raw.get("repos") or []))
+                   repos=list(raw.get("repos") or []),
+                   state_repo=bool(raw.get("state_repo")))
 
     @classmethod
     def empty(cls, path: Path) -> "Worklog":
@@ -134,6 +138,8 @@ class Worklog:
         if self.repos:
             # absent rather than `repos: []`, so a single-repo worklog reads as it did
             data["repos"] = list(self.repos)
+        if self.state_repo:
+            data["state_repo"] = True
         data["items"] = [i.to_dict() for i in self.items]
         data.update(self.extra)
         write_atomic(self.path, _dump(data))

@@ -186,7 +186,6 @@ Then print one table. A row per entry at the root, in this shape:
 | `runs-2025/` | baseline epoch, `LOGS/` | 400 run directories, nothing reads them |
 | `perfagent-results/` | baseline epoch, `LOGS/` | moves whole — `update_index.py` inside it reads `./runs` |
 | `eval-fixture/` | `?` | can't tell if a test still reads this — which is it? |
-| (root) | `git init` | not a repo yet — tracks clarity's own files only; see step 5 |
 | `EPOCHS/` | — | clarity's |
 
 Put the rows that cost something first, each with what it costs, then the `?`
@@ -215,17 +214,11 @@ Move only the rows that survived. Three rules:
 A nested checkout moves as a whole: its `.git` travels with it and its history
 is untouched. Do not open it, and do not try to merge it into the outer repo.
 
-**If the root is not a git repo**, and the human approved that row, make it one
-for clarity's own files and nothing else. Clarity's record — the worklog and
-every epoch's notes — otherwise lives in no repo at all:
-
-    git init
-    printf 'workspace/\n3rd_party/\nEPOCHS/*/LOGS/\nEPOCHS/*/wt/\n' >> .gitignore
-    git add .gitignore .clarity worklog.yaml AGENTS.md CLAUDE.md EPOCHS LEARNINGS
-    git commit -m "clarity: adopt"
-
-The ignores keep the nested repos and the moved records out of it: they were
-never in a repo here, and some of them are large.
+**If the root was not a git repo**, `clarity adopt` already made it one, for
+clarity's own files only: its `.gitignore` keeps out `workspace/`, `3rd_party/`
+and every epoch's `LOGS/`, because the nested repos have histories of their own
+and the records can be large. Epochs never branch this repo. Do not commit to
+it — when to snapshot or share the worklog is the human's call.
 
 Afterwards, confirm nothing was left behind: `ls -a` the root again and check it
 against your table.

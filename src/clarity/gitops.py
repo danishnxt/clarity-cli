@@ -21,6 +21,11 @@ def is_repo(root: Path) -> bool:
     return (root / ".git").exists()
 
 
+def init(root: Path) -> None:
+    """A new, empty repo. Nothing is staged or committed — that stays the human's call."""
+    _run(["init", "-q"], root)
+
+
 def current_branch(root: Path) -> str | None:
     if not is_repo(root):
         return None
