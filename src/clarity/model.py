@@ -109,16 +109,23 @@ class Item:
 
 @dataclass
 class Objectives:
+    """What the project is for — one line, and the only objective there is.
+
+    There used to be a second, `current`: what's being worked on now. It was a
+    hand-kept copy of what "In flight" already shows, and with several epochs in
+    flight at once no single line could be true. An old worklog's `current` is
+    read and dropped on the next write.
+    """
+
     overall: str | None = None
-    current: str | None = None
 
     @classmethod
     def from_dict(cls, raw: dict | None) -> "Objectives":
         raw = raw or {}
-        return cls(overall=raw.get("overall"), current=raw.get("current"))
+        return cls(overall=raw.get("overall"))
 
     def to_dict(self) -> dict:
-        return {"overall": self.overall, "current": self.current}
+        return {"overall": self.overall}
 
 
 DEFAULT_CONFIG = {

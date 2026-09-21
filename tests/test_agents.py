@@ -173,10 +173,10 @@ def test_no_file_carries_a_copy_of_the_objective(tmp_path):
     root = make_repo(tmp_path)
     Project.init(root, name="proj", overall="ship the parser")
     project = Project.find(root)
-    project.set_objective("this week: benchmarks")
+    project.set_objective("ship the parser, then benchmarks")
 
     for name in ("AGENTS.md", "CLAUDE.md"):
         text = (root / name).read_text()
         assert "ship the parser" not in text and "benchmarks" not in text
     assert not (root / ".clarity" / "RULES.md").exists()
-    assert "ship the parser" in project.status_text()
+    assert "ship the parser, then benchmarks" in project.status_text()

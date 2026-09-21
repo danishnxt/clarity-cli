@@ -397,3 +397,16 @@ def test_rename_an_idea_and_the_edge_cases(tmp_path):
     with pytest.raises(ClarityError) as err:
         Project.find(root).rename(idea.id, "   ")
     assert err.value.code == 4
+
+
+def test_an_old_worklog_with_a_now_line_still_loads(tmp_path):
+    """`current` was dropped; a worklog that has one loads and loses it on the next write."""
+    root = make_repo(tmp_path)
+    Project.init(root, name="proj", overall="ship it")
+    path = root / "worklog.yaml"
+    path.write_text(path.read_text().replace("overall: ship it",
+                                             "overall: ship it\n  current: this week"))
+    project = Project.find(root)
+    assert "NOW" not in project.status_text()
+    project.set_objective("ship it well")
+    assert "current" not in path.read_text()

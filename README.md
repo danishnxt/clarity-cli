@@ -16,7 +16,7 @@ clarity --version
 
 ```sh
 cd ~/some_project
-clarity init --objective "Compare parser A and B" --now "Get both building"
+clarity init --objective "Compare parser A and B"
 
 clarity idea add "flaky test on macOS" --type fix
 clarity idea list

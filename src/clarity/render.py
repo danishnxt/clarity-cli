@@ -131,7 +131,7 @@ def status_text(objectives: Objectives, items: list[Item], show_all: bool = Fals
     """The one-screen view. Printed, never written down — see the module docstring."""
     cols = width()
     out = []
-    for label, text in (("OBJECTIVE", objectives.overall), ("NOW", objectives.current)):
+    for label, text in (("OBJECTIVE", objectives.overall),):
         out += _wrap(text or "— not set —", f"{label:<11}", " " * 11, cols)
     out.append("")
     # What's ahead is a queue, oldest first — the top of the list is what to pick up.

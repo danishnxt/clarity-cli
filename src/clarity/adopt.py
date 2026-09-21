@@ -88,13 +88,11 @@ Before you list a single directory, ask the human:
 
 One or two lines is plenty. Record it straight away:
 
-    clarity objective set --overall "what this project is for"
-    clarity objective set "what is being worked on now"
+    clarity objective set "what this project is for"
 
 Ask the human; do not infer it from the code — you haven't read any yet, and
-a repo's contents say what it does, not what they want from it. Ask for the
-second only if the first doesn't already say it. If they would rather not
-answer, carry on without it — but every step below is easier with
+a repo's contents say what it does, not what they want from it. If they
+would rather not answer, carry on without it — but every step below is easier with
 it, because the goal is what tells you which repos they change. "We're making
 the SWE agent do X" means the agent's repo is the one in `workspace/`, and the
 rest are support.

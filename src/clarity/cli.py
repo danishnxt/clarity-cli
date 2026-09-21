@@ -159,7 +159,6 @@ def build_parser() -> argparse.ArgumentParser:
                    "already say. Adds nothing to your source.", section=setup)
     p_init.add_argument("--name", help="project name (default: this folder's name)")
     p_init.add_argument("--objective", help="the overall objective — what this project is for")
-    p_init.add_argument("--now", help="the current objective — what you're doing this week")
 
     _leaf(sub, "adopt", "set up in a folder that already has files in it",
           "Does what init does, then writes .clarity/adopt.md — the procedure an "
@@ -212,17 +211,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     # ---- objectives ----
     obj_rows: list = []
-    p_obj = _leaf(sub, "objective", "what this project is for, and what you're on now",
-                  section=work)
+    p_obj = _leaf(sub, "objective", "what this project is for", section=work)
     obj = p_obj.add_subparsers(dest="action", required=True, metavar="<action>")
-    p_obj_set = _leaf(obj, "set", "set the current objective, or --overall for the big one",
-                      description="The current objective is what you're doing now; the "
-                      "overall one is what the project is for. Both are printed by "
-                      "clarity status; no file keeps a copy.", into=obj_rows)
+    p_obj_set = _leaf(obj, "set", "say what the project is for, in one line",
+                      description="Printed at the top of clarity status; no file keeps a "
+                      "copy. What is being worked on right now is not an objective — "
+                      "that is what `In flight` shows.", into=obj_rows)
     p_obj_set.add_argument("text", metavar="<text>", help="the objective, in one line")
-    p_obj_set.add_argument("--overall", action="store_true",
-                           help="set the overall objective instead of the current one")
-    _leaf(obj, "show", "print both objectives", into=obj_rows)
+    _leaf(obj, "show", "print the objective", into=obj_rows)
 
     # ---- repos ----
     repo_rows: list = []
@@ -446,8 +442,7 @@ def _install_text(done, scope: str) -> str:
 
 def run(args) -> int:
     if args.command == "init":
-        project = Project.init(Path.cwd(), name=args.name, overall=args.objective,
-                               current=args.now)
+        project = Project.init(Path.cwd(), name=args.name, overall=args.objective)
         emit(args, "init", {"root": str(project.root)}, _first_run(project))
         return 0
 
@@ -487,13 +482,12 @@ def run(args) -> int:
 
     elif args.command == "objective":
         if action == "set":
-            project.set_objective(args.text, overall=args.overall)
+            project.set_objective(args.text)
             emit(args, "objective.set", project.query("objectives"), project.status_text())
         else:
             data = project.query("objectives")
             emit(args, "objective.show", data,
-                 f"OBJECTIVE  {data['overall'] or '— not set —'}\n"
-                 f"NOW        {data['current'] or '— not set —'}")
+                 f"OBJECTIVE  {data['overall'] or '— not set —'}")
 
     elif args.command == "repo":
         if action == "add":

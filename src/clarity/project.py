@@ -83,8 +83,7 @@ class Project:
         )
 
     @staticmethod
-    def init(root: Path, name: str | None = None, overall: str | None = None,
-             current: str | None = None) -> "Project":
+    def init(root: Path, name: str | None = None, overall: str | None = None) -> "Project":
         root = root.resolve()
         if (root / CONFIG_DIR).is_dir() and (root / WORKLOG).exists():
             raise ClarityError(f"{root} is already a clarity project", code=4)
@@ -98,7 +97,6 @@ class Project:
 
         worklog = Worklog.empty(root / WORKLOG)
         worklog.objectives.overall = overall
-        worklog.objectives.current = current
         worklog.save()
 
         project = Project(root)
@@ -280,14 +278,11 @@ class Project:
 
     # ---------- objectives ----------
 
-    def set_objective(self, text: str, overall: bool = False) -> None:
+    def set_objective(self, text: str) -> None:
         # Nothing to regenerate: the objective lives in worklog.yaml and is printed by
         # `clarity status`. No file carries a copy of it.
         with self._write():
-            if overall:
-                self.worklog.objectives.overall = text
-            else:
-                self.worklog.objectives.current = text
+            self.worklog.objectives.overall = text
 
     # ---------- the repos a workspace changes ----------
 

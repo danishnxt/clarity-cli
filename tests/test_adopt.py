@@ -135,7 +135,7 @@ def test_the_goal_is_asked_before_anything_is_listed():
     """It decides which repos go to workspace/ — so it comes before the first `ls`."""
     first = _step(0)
     assert "What are you trying to do in this project?" in first
-    assert "clarity objective set --overall" in first
+    assert 'clarity objective set "' in first
     assert "ls -a" not in first
     assert adopt.ADOPT_MD.index("What are you trying to do") < adopt.ADOPT_MD.index("ls -a")
 
