@@ -46,15 +46,19 @@ cd ~/some_project
 clarity adopt
 ```
 
-That sets the project up and writes `.clarity/adopt.md`: the procedure for tidying
-the layout, so everything that is not clarity's moves under `src/` and the root is left
-holding clarity's own files. The moves are proposed as a table and wait for your
-approval — moving a directory can break it, and only you know which ones you still
-need. Point an agent at it — the clarity block in `AGENTS.md` already tells every
-agent to read that file first when it exists.
+That sets the project up and writes `.clarity/adopt.md`: the procedure an agent
+follows to sort the root in two passes. Working material — checkouts, scripts,
+fixtures, virtualenvs — goes under `workspace/`. What's left is usually the record of
+work already done, and that goes into a baseline epoch, created and immediately closed.
+Directories move whole, never reaching inside one.
 
-Adopt deliberately does *not* inventory the work. The worklog comes out empty; you add
-what you're working on afterwards, a line each.
+Every move is proposed as a table and waits for your approval — moving a directory can
+break it, and only you know which ones you still need. Point an agent at it; the clarity
+block in `AGENTS.md` already tells every agent to read that file first when it exists.
+
+Adopt does *not* try to work out what you're working on — the baseline epoch is the one
+item it creates, and it's closed on arrival. Everything up to adoption is epoch 1; the
+next thing you do is yours to start.
 
 The last step tells the agent to delete it. Its absence is what "adoption finished"
 means; there is no flag to set and no second copy to go stale.

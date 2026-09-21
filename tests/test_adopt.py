@@ -90,22 +90,53 @@ def test_the_procedure_only_names_commands_that_exist():
     assert named <= commands, f"adopt.md names commands that do not exist: {named - commands}"
 
 
-# The rest of this file guards the scope of adoption. It is a tidying job: move
-# what is not clarity's under src/, propose before touching anything, and leave
-# the worklog empty. An earlier draft also inventoried branches and TODO files
-# and proposed epochs; that was cut, and these keep it cut.
+# The rest of this file guards the scope of adoption. It is a tidying job with
+# two destinations: working material to workspace/, existing records to a
+# baseline epoch that is born closed. An earlier draft inventoried branches and
+# TODO files and proposed epochs for in-flight work; that was cut, and these
+# keep it cut.
 
 
-def test_adoption_creates_no_items():
+def test_adoption_does_not_inventory_in_flight_work():
     """A fresh worklog full of guessed items costs more to clean up than it saves."""
-    assert "Do not create any epochs or ideas" in adopt.ADOPT_MD
-    assert "worklog stays empty" in adopt.ADOPT_MD
+    assert "Do not inventory the project's in-flight work" in adopt.ADOPT_MD
+    assert "Do not add any other items on your way out" in adopt.ADOPT_MD
 
 
-def test_the_rule_is_everything_that_is_not_claritys():
-    assert "moves under `src/`" in adopt.ADOPT_MD
+def test_the_baseline_epoch_is_created_closed():
+    """The one item adoption creates describes work already done, so it starts done."""
+    assert "clarity epoch new" in adopt.ADOPT_MD
+    assert "clarity epoch close" in adopt.ADOPT_MD
+    close_at = adopt.ADOPT_MD.index("clarity epoch close")
+    new_at = adopt.ADOPT_MD.index("clarity epoch new")
+    assert new_at < close_at, "close must follow new — the epoch is never left in flight"
+    assert "Do not create an empty epoch" in adopt.ADOPT_MD
+
+
+def test_both_destinations_are_named():
+    assert "`workspace/`" in adopt.ADOPT_MD
+    assert "baseline epoch" in adopt.ADOPT_MD
+    # The bucket was renamed src/ -> workspace/: in a workspace holding a checkout
+    # that has its own src/, "src/duckdb/src/" is ambiguous. The document may still
+    # mention a project's own src/ — what it may not do is send anything there.
+    assert "under `src/`" not in adopt.ADOPT_MD
+    assert "`src/" not in adopt.ADOPT_MD.replace("A `src/` or `lib/`", "")
     for own in ("worklog.yaml", "EPOCHS/", "LEARNINGS/", ".clarity/", "AGENTS.md"):
         assert own in adopt.ADOPT_MD, f"{own} is not listed as staying at the root"
+
+
+def test_layout_instructions_are_read_before_anything_is_proposed():
+    """A move against a written 'do not move X' costs a rebuild to undo."""
+    step_zero = adopt.ADOPT_MD.index("## 0 ")
+    assert step_zero < adopt.ADOPT_MD.index("## 1 ")
+    preamble = adopt.ADOPT_MD[step_zero:adopt.ADOPT_MD.index("## 1 ")]
+    assert "*PLAN*.md" in preamble and "README.md" in preamble
+
+
+def test_whole_directories_move_together():
+    """Lifting runs/ out of a results dir silently breaks the script that reads it."""
+    assert "never reach inside one" in adopt.ADOPT_MD
+    assert "do not guess" in adopt.ADOPT_MD.lower()
 
 
 def test_every_file_clarity_owns_is_named_as_staying(tmp_path):

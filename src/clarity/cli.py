@@ -371,12 +371,14 @@ def _adopt_text(project, doc: Path) -> str:
         f"clarity initialised in {project.root}\n"
         f"this folder has files in it that predate clarity, and the root is now "
         f"clarity's\n\n"
-        f"wrote {rel}: the procedure for tidying that up — everything that is not\n"
-        f"clarity's moves under src/, proposed as a table before anything is touched.\n"
+        f"wrote {rel}: the procedure for tidying that up. What you work on moves\n"
+        f"under workspace/; logs and results from work already done go into a\n"
+        f"baseline epoch, closed on arrival. Every move is proposed as a table\n"
+        f"before anything is touched.\n"
         f"It is written for an agent. Point one at it:\n\n"
         f'  "read {rel} and follow it"\n\n'
-        f"It adds nothing to the worklog. What you are working on stays yours to\n"
-        f"write down afterwards, a line at a time.\n"
+        f"Nothing in flight is added to the worklog. What you are working on now\n"
+        f"stays yours to write down afterwards, a line at a time.\n"
     )
 
 

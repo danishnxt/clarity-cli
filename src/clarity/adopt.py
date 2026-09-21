@@ -3,15 +3,31 @@
 `init` assumes an empty or tidy folder. `adopt` is for the other case: a
 workspace that grew before anyone thought about layout, with checkouts, caches,
 results and scripts all sitting at the root. Clarity wants that root for its own
-scaffolding, so adoption is a tidying job — everything that is not clarity's
-moves under `src/`, and the root is left holding `.clarity/`, `EPOCHS/`,
-`LEARNINGS/`, `worklog.yaml` and the agent instructions files.
+scaffolding, so adoption is a tidying job.
 
-What adopt deliberately does *not* do is inventory the work. An earlier design
-had it reading branches and TODO files and proposing epochs; that is a separate
-and much harder job, and getting it wrong fills a fresh worklog with items
-someone then has to close. The worklog comes out empty on purpose. Whoever
-adopted the project knows what they are working on and can say so in a line.
+It sorts the root in two passes, because a research workspace is not all source.
+Pass one takes the working material — checkouts, scripts, fixtures, virtualenvs,
+anything someone edits or runs — and puts it under `workspace/`. Pass two takes
+what is left, which in a project that has been running a while is usually the
+larger pile: run outputs, results, logs, old experiments. That is a record of
+work already done, so it goes into a baseline epoch, created and immediately
+closed.
+
+The bucket is `workspace/` and not `src/` because a workspace usually holds a
+checkout that has its own `src/`, and `src/duckdb/src/optimizer/` reads as a
+mistake every time someone says it out loud.
+
+The baseline epoch is the only item adoption creates. That is not a reversal of
+"do not inventory the work" — guessing what someone is *working on* fills a
+worklog with items they then have to close, whereas the baseline is a container
+for material already on disk, and it is born closed. It also gives the human a
+place in the timeline: everything up to now is epoch 1, and the next thing they
+do is theirs to start.
+
+Directories move whole, never reaching inside one. A results directory often
+ships the script that reads it, with the path hardcoded relative to itself, so
+lifting one subdirectory out regenerates an index from nothing and drops rows
+without failing.
 
 The moves themselves are proposed, never performed unattended. Moving a
 directory can break it — a virtualenv's scripts carry absolute shebangs, a
@@ -42,20 +58,39 @@ ADOPT_MD = """# Adopting clarity in this project
 Someone ran `clarity adopt` here. The scaffolding exists now, and this project
 already had files in it before clarity arrived.
 
-Your job is to tidy the layout, and only that: **everything that is not
-clarity's moves under `src/`**, so the root is left holding clarity's own
-files. Then delete this file, which is what marks adoption finished.
+Your job is to tidy the layout, and only that. Everything that is not clarity's
+goes to one of two places:
 
-**Do not create any epochs or ideas.** The worklog stays empty. Reading a
-project's branches and TODO files and guessing what its work is takes judgement
-you do not have yet, and a fresh worklog full of wrong items costs more to clean
-up than it saves. Whoever adopted this project will add their own work
-afterwards, in a line each.
+- **`workspace/`** — the things the project is built from and worked on:
+  checkouts, scripts, fixtures, notebooks, virtualenvs.
+- **A baseline epoch** — the record of work already done: old runs, results,
+  logs, analysis, notes. You create it, and it is born closed.
 
-## 1 · See what is at the root
+Then delete this file, which is what marks adoption finished.
 
-`ls -a` in the project root, and nothing deeper yet. Everything there falls into
-one of two groups.
+**Do not inventory the project's in-flight work.** Reading branches and TODO
+files and guessing what someone is working on takes judgement you do not have
+yet, and a worklog full of wrong items costs more to clean up than it saves.
+The baseline epoch is the one item you create, and it is not a guess — it is a
+container for material already on disk.
+
+## 0 · Read what the project already says about its layout
+
+Before looking at the files, read whatever the project says about itself:
+`README.md`, `CLAUDE.md`, `AGENTS.md`, and anything matching `*PLAN*.md` or
+`*NOTES*.md` at the root.
+
+You are looking for decisions already made — "don't move X", "Y has to stay next
+to Z", a layout someone already argued about. A line like `Don't move duckdb/ or
+eval-fixture/` outranks every rule below it. Quote it back in your proposal so
+the human can see you found it, and leave those entries where they are.
+
+Do this first. A move you propose against a written instruction costs the human
+a rebuild to undo, and costs you their trust in the rest of the table.
+
+## 1 · Pass one — what is worked on
+
+`ls -a` in the project root, and nothing deeper yet.
 
 **Clarity's own — these stay at the root:**
 
@@ -64,10 +99,28 @@ one of two groups.
     .windsurfrules      .github/copilot-instructions.md
     .git/          .gitignore
 
-**Everything else moves under `src/`.** Source directories, checkouts,
-notebooks, scripts, data, results, virtualenvs, caches, loose files — the rule
-is simple on purpose, so that the layout after adoption is predictable rather
-than a matter of taste.
+Of what is left, find the working material — anything someone edits, builds or
+runs. A checkout with a `.git` inside it. A `src/` or `lib/`. Scripts, fixtures,
+notebooks, config, virtualenvs, caches. These go to **`workspace/`**.
+
+## 2 · Pass two — what is a record
+
+Now look at what pass one did not claim, and work out what each one *is*. In a
+project that has been running a while this is usually the larger pile: run
+outputs, result directories, logs, plots, analysis, old experiments, scratch
+notes. These go to **the baseline epoch**.
+
+**Move whole top-level directories, never reach inside one.** A results
+directory often contains its own scripts, and those scripts hardcode paths
+relative to it — `RUNS = ROOT / "runs"` breaks silently if you lift `runs/` out
+on its own, regenerating an index from an empty directory rather than failing.
+If a directory holds both records and the code that reads them, it moves as one
+piece, and it goes wherever its *code* needs it to be.
+
+**When you cannot tell, do not guess.** Is `eval-fixture/` live input or a
+leftover from a finished experiment? Put it in the table with a `?` and ask. The
+table already waits for approval; one more question in it costs nothing, and a
+wrong guess costs a move and a move back.
 
 Then check each candidate for the one thing a move does not carry with it:
 absolute paths baked into generated files.
@@ -90,36 +143,42 @@ can make. "Moving breaks the build" is not — it only sounds like one.
 
 You are not deciding these. You are pricing them, so the human can.
 
-## 2 · Propose the layout
+## 3 · Propose the layout
 
 Print one table. A row per entry at the root, in this shape:
 
 | Now | After | Note |
 |---|---|---|
-| `duckdb/` | `src/duckdb/` | 10G checkout with a configured build tree — needs `cmake` + rebuild after |
-| `notes/` | `src/notes/` | plain markdown, nothing to redo |
-| `.venv/` | `src/.venv/` | virtualenv — delete and recreate after, seconds |
+| `duckdb/` | `workspace/duckdb/` | 10G checkout with a configured build tree — needs `cmake` + rebuild after |
+| `scripts/` | `workspace/scripts/` | plain python, nothing to redo |
+| `.venv/` | `workspace/.venv/` | virtualenv — delete and recreate after, seconds |
+| `runs-2025/` | baseline epoch, `LOGS/` | 400 run directories, nothing reads them |
+| `perfagent-results/` | baseline epoch, `LOGS/` | moves whole — `update_index.py` inside it reads `./runs` |
+| `eval-fixture/` | `?` | can't tell if a test still reads this — which is it? |
 | `EPOCHS/` | — | clarity's |
 
-Put the rows that cost something first, each with what it costs. Then stop.
+Put the rows that cost something first, each with what it costs, then the `?`
+rows, then the rest. Quote any layout instruction you found in step 0. Then stop.
 
 Ask for approval of the table as a whole, and say that any row can be struck
 out. Leaving a big checkout exactly where it is is a normal answer, not a
 failure of the plan — but make sure it is being left because the human wants it
 there, not because you made a rebuild sound like a catastrophe.
 
-If nothing at the root needs moving, say so and go to step 4. A project that is
+If nothing at the root needs moving, say so and go to step 6. A project that is
 already tidy is a valid outcome.
 
-## 3 · Move, once approved
+## 4 · Move, once approved
 
-Move only the rows that survived. Two rules:
+Move only the rows that survived. Three rules:
 
 - **Use `git mv` for anything git tracks**, and a plain `mv` for everything
   else. `git mv` records the rename, so history follows the file instead of
   showing a delete and an add.
 - **One entry at a time, checking as you go.** If a move fails, stop and report
   rather than continuing — a half-moved tree is worse than an untidy one.
+- **Create the baseline epoch before moving anything into it** (step 5), so its
+  folder exists and you are moving into a real path.
 
 A nested checkout moves as a whole: its `.git` travels with it and its history
 is untouched. Do not open it, and do not try to merge it into the outer repo.
@@ -127,7 +186,24 @@ is untouched. Do not open it, and do not try to merge it into the outer repo.
 Afterwards, confirm nothing was left behind: `ls -a` the root again and check it
 against your table.
 
-## 4 · Set the objectives
+## 5 · The baseline epoch
+
+If pass two found anything, give it an epoch of its own. It is created and
+immediately closed, because it describes work that already happened:
+
+    clarity epoch new "baseline: work before clarity" --type chore
+    clarity epoch close <id> --outcome "existing logs and results, moved in at adoption"
+
+`clarity path <id>` prints its folder. Put the records under its `LOGS/`, and
+analysis or plots under `ANALYSIS/` and `VIZ/` if the split is obvious — if it
+is not, `LOGS/` for all of it is fine. Do not reorganise what is inside the
+directories you moved. They are someone's existing work, not yours to sort.
+
+Then `clarity note <id> "..."` with one line on where the material came from.
+
+If pass two found nothing, skip this step. Do not create an empty epoch.
+
+## 6 · Set the objectives
 
 These are the two lines `clarity status` leads with, and the first thing every
 future session reads:
@@ -139,16 +215,21 @@ Ask the human for both. Do not infer them from the code — you have only just
 rearranged the folders, which tells you nothing about intent. If they would
 rather fill them in later, leave them unset and say so.
 
-## 5 · Finish
+## 7 · Finish
 
-    clarity status          # objectives set, no items — that is correct here
+    clarity status          # the baseline epoch, closed, and nothing in flight
     rm .clarity/adopt.md    # adoption is over; this file is the only marker
 
-Then tell the human three things: what moved, what you left alone and why, and
-what now needs regenerating — the builds to re-run, the virtualenvs to recreate,
-the caches that will refill themselves. Give them the commands.
+Then tell the human four things: what moved, what you left alone and why, what
+now needs regenerating — the builds to re-run, the virtualenvs to recreate, the
+caches that will refill themselves — and that their previous work is recorded as
+the baseline epoch, with nothing in flight yet.
 
-Do not add items on your way out. `clarity idea add "..."` is theirs to run.
+Say that last part plainly: everything up to now is epoch 1 and it is closed;
+the next thing they work on is theirs to start with `clarity epoch start`.
+
+Do not add any other items on your way out. `clarity idea add "..."` is theirs
+to run.
 """
 
 
