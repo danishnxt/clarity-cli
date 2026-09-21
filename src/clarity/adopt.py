@@ -5,12 +5,15 @@ workspace that grew before anyone thought about layout, with checkouts, caches,
 results and scripts all sitting at the root. Clarity wants that root for its own
 scaffolding, so adoption is a tidying job.
 
-It sorts the root in two passes, because a research workspace is not all source.
-Pass one takes the working material — checkouts, scripts, fixtures, virtualenvs,
-anything someone edits or runs — and puts it under `workspace/`. Pass two takes
-what is left, which in a project that has been running a while is usually the
-larger pile: run outputs, results, logs, old experiments. That is a record of
-work already done, so it goes into a baseline epoch, created and immediately
+It starts by asking what the project is for, because the answer decides the
+sort. Then two passes, because a research workspace is not all source. Pass one
+takes the repos and splits them: the ones the project changes go under
+`workspace/` with the scripts and virtualenvs around them, and the ones it only
+uses — a tool, a dependency — go under `3rd_party/`. The workspace repos are
+listed with `clarity repo add`, which is what makes epochs branch them. Pass two
+takes what is left, which in a project that has been running a while is usually
+the larger pile: run outputs, results, logs, old experiments. That is a record
+of work already done, so it goes into a baseline epoch, created and immediately
 closed.
 
 The bucket is `workspace/` and not `src/` because a workspace usually holds a
@@ -59,10 +62,13 @@ Someone ran `clarity adopt` here. The scaffolding exists now, and this project
 already had files in it before clarity arrived.
 
 Your job is to tidy the layout, and only that. Everything that is not clarity's
-goes to one of two places:
+goes to one of three places:
 
-- **`workspace/`** — the things the project is built from and worked on:
-  checkouts, scripts, fixtures, notebooks, virtualenvs.
+- **`workspace/`** — what the project changes: the repos it modifies, and the
+  scripts, fixtures, notebooks and virtualenvs around them. When in doubt about
+  something that is not a record, it goes here.
+- **`3rd_party/`** — repos the project only uses: a tool, a dependency, a
+  benchmark harness. Nobody here changes them, so epochs never branch them.
 - **A baseline epoch** — the record of work already done: old runs, results,
   logs, analysis, notes. You create it, and it is born closed.
 
@@ -74,21 +80,39 @@ yet, and a worklog full of wrong items costs more to clean up than it saves.
 The baseline epoch is the one item you create, and it is not a guess — it is a
 container for material already on disk.
 
-## 0 · Read what the project already says about its layout
+## 0 · Ask what the project is for
 
-Before looking at the files, read whatever the project says about itself:
-`README.md`, `CLAUDE.md`, `AGENTS.md`, and anything matching `*PLAN*.md` or
-`*NOTES*.md` at the root.
+Before you list a single directory, ask the human:
+
+> What are you trying to do in this project?
+
+One or two lines is plenty. Record it straight away:
+
+    clarity objective set --overall "what this project is for"
+    clarity objective set "what is being worked on now"
+
+Ask the human; do not infer it from the code — you haven't read any yet, and
+a repo's contents say what it does, not what they want from it. Ask for the
+second only if the first doesn't already say it. If they would rather not
+answer, carry on without it — but every step below is easier with
+it, because the goal is what tells you which repos they change. "We're making
+the SWE agent do X" means the agent's repo is the one in `workspace/`, and the
+rest are support.
+
+## 1 · Read what the project already says about its layout
+
+Now read whatever the project says about itself: `README.md`, `CLAUDE.md`,
+`AGENTS.md`, and anything matching `*PLAN*.md` or `*NOTES*.md` at the root.
 
 You are looking for decisions already made — "don't move X", "Y has to stay next
 to Z", a layout someone already argued about. A line like `Don't move duckdb/ or
 eval-fixture/` outranks every rule below it. Quote it back in your proposal so
 the human can see you found it, and leave those entries where they are.
 
-Do this first. A move you propose against a written instruction costs the human
-a rebuild to undo, and costs you their trust in the rest of the table.
+A move you propose against a written instruction costs the human a rebuild to
+undo, and costs you their trust in the rest of the table.
 
-## 1 · Pass one — what is worked on
+## 2 · Pass one — what the project changes, and what it uses
 
 `ls -a` in the project root, and nothing deeper yet.
 
@@ -99,11 +123,20 @@ a rebuild to undo, and costs you their trust in the rest of the table.
     .windsurfrules      .github/copilot-instructions.md
     .git/          .gitignore
 
-Of what is left, find the working material — anything someone edits, builds or
-runs. A checkout with a `.git` inside it. A `src/` or `lib/`. Scripts, fixtures,
-notebooks, config, virtualenvs, caches. These go to **`workspace/`**.
+Of what is left, find the repos first — any directory with a `.git` inside it.
+Each one is either changed here or only used here. Propose the split from the
+goal in step 0, as **one question** for the whole set, not one per repo:
 
-## 2 · Pass two — what is a record
+> You're modifying the SWE agent, so `mini-swe-agent/` goes in `workspace/`.
+> `duckdb/`, `eval-fixture/` and `perfagent-results/` look like support, so
+> they go in `3rd_party/`. Right?
+
+If you have no goal to go on, ask which repos they change, once, as a list.
+
+Then the rest of the working material — scripts, fixtures, notebooks, config,
+virtualenvs, caches. These go to **`workspace/`**.
+
+## 3 · Pass two — what is a record
 
 Now look at what pass one did not claim, and work out what each one *is*. In a
 project that has been running a while this is usually the larger pile: run
@@ -122,8 +155,10 @@ leftover from a finished experiment? Put it in the table with a `?` and ask. The
 table already waits for approval; one more question in it costs nothing, and a
 wrong guess costs a move and a move back.
 
-Then check each candidate for the one thing a move does not carry with it:
-absolute paths baked into generated files.
+## 4 · Propose the layout
+
+First, price the moves. Check each candidate for the one thing a move does not
+carry with it: absolute paths baked into generated files.
 
 Nothing in this table is source. Every one of them is an artifact built from
 something else, so a move costs time to regenerate, not work. Say that — a
@@ -139,26 +174,25 @@ and the same human told "re-run cmake, about twenty minutes" just says yes.
 
 Estimate the cost where you can: a build tree's size, or how long its last build
 took if a log says. "Rebuild, roughly twenty minutes" is a decision the human
-can make. "Moving breaks the build" is not — it only sounds like one.
+can make. "Moving breaks the build" is not — it only sounds like one. You are
+not deciding these. You are pricing them, so the human can.
 
-You are not deciding these. You are pricing them, so the human can.
-
-## 3 · Propose the layout
-
-Print one table. A row per entry at the root, in this shape:
+Then print one table. A row per entry at the root, in this shape:
 
 | Now | After | Note |
 |---|---|---|
-| `duckdb/` | `workspace/duckdb/` | 10G checkout with a configured build tree — needs `cmake` + rebuild after |
+| `duckdb/` | `3rd_party/duckdb/` | 10G checkout with a configured build tree — needs `cmake` + rebuild after |
+| `mini-swe-agent/` | `workspace/mini-swe-agent/` | the repo you're changing — epochs will branch it |
 | `scripts/` | `workspace/scripts/` | plain python, nothing to redo |
 | `.venv/` | `workspace/.venv/` | virtualenv — delete and recreate after, seconds |
 | `runs-2025/` | baseline epoch, `LOGS/` | 400 run directories, nothing reads them |
 | `perfagent-results/` | baseline epoch, `LOGS/` | moves whole — `update_index.py` inside it reads `./runs` |
 | `eval-fixture/` | `?` | can't tell if a test still reads this — which is it? |
+| (root) | `git init` | not a repo yet — tracks clarity's own files only; see step 5 |
 | `EPOCHS/` | — | clarity's |
 
 Put the rows that cost something first, each with what it costs, then the `?`
-rows, then the rest. Quote any layout instruction you found in step 0. Then stop.
+rows, then the rest. Quote any layout instruction you found in step 1. Then stop.
 
 Ask for approval of the table as a whole, and say that any row can be struck
 out. Leaving a big checkout exactly where it is is a normal answer, not a
@@ -168,7 +202,7 @@ there, not because you made a rebuild sound like a catastrophe.
 If nothing at the root needs moving, say so and go to step 6. A project that is
 already tidy is a valid outcome.
 
-## 4 · Move, once approved
+## 5 · Move, once approved
 
 Move only the rows that survived. Three rules:
 
@@ -177,16 +211,41 @@ Move only the rows that survived. Three rules:
   showing a delete and an add.
 - **One entry at a time, checking as you go.** If a move fails, stop and report
   rather than continuing — a half-moved tree is worse than an untidy one.
-- **Create the baseline epoch before moving anything into it** (step 5), so its
+- **Create the baseline epoch before moving anything into it** (step 7), so its
   folder exists and you are moving into a real path.
 
 A nested checkout moves as a whole: its `.git` travels with it and its history
 is untouched. Do not open it, and do not try to merge it into the outer repo.
 
+**If the root is not a git repo**, and the human approved that row, make it one
+for clarity's own files and nothing else. Clarity's record — the worklog and
+every epoch's notes — otherwise lives in no repo at all:
+
+    git init
+    printf 'workspace/\n3rd_party/\nEPOCHS/*/LOGS/\nEPOCHS/*/wt/\n' >> .gitignore
+    git add .gitignore .clarity worklog.yaml AGENTS.md CLAUDE.md EPOCHS LEARNINGS
+    git commit -m "clarity: adopt"
+
+The ignores keep the nested repos and the moved records out of it: they were
+never in a repo here, and some of them are large.
+
 Afterwards, confirm nothing was left behind: `ls -a` the root again and check it
 against your table.
 
-## 5 · The baseline epoch
+## 6 · Tell clarity which repos epochs branch
+
+Every repo that went to `workspace/` gets one line:
+
+    clarity repo add workspace/mini-swe-agent
+
+From then on, `clarity epoch start` gives each listed repo the epoch's branch
+and a worktree. Repos in `3rd_party/` stay off the list — nobody changes them,
+so nothing should branch them. `clarity repo list` shows what you added.
+
+If the project root is itself the one repo and nothing nested is changed, add
+nothing: with no repos listed, epochs branch the root.
+
+## 7 · The baseline epoch
 
 If pass two found anything, give it an epoch of its own. It is created and
 immediately closed, because it describes work that already happened:
@@ -203,30 +262,19 @@ Then `clarity note <id> "..."` with one line on where the material came from.
 
 If pass two found nothing, skip this step. Do not create an empty epoch.
 
-## 6 · Set the objectives
+## 8 · Finish
 
-These are the two lines `clarity status` leads with, and the first thing every
-future session reads:
-
-    clarity objective set --overall "what this project is for"
-    clarity objective set "what is being worked on now"
-
-Ask the human for both. Do not infer them from the code — you have only just
-rearranged the folders, which tells you nothing about intent. If they would
-rather fill them in later, leave them unset and say so.
-
-## 7 · Finish
-
-    clarity status          # the baseline epoch, closed, and nothing in flight
+    clarity status          # objectives, the baseline epoch closed, nothing in flight
+    clarity repo list       # the repos epochs will branch
     rm .clarity/adopt.md    # adoption is over; this file is the only marker
 
-Then tell the human four things: what moved, what you left alone and why, what
-now needs regenerating — the builds to re-run, the virtualenvs to recreate, the
-caches that will refill themselves — and that their previous work is recorded as
-the baseline epoch, with nothing in flight yet.
+Then tell the human what moved, what you left alone and why, and what now needs
+regenerating — the builds to re-run, the virtualenvs to recreate, the caches
+that will refill themselves. Give them the commands.
 
-Say that last part plainly: everything up to now is epoch 1 and it is closed;
-the next thing they work on is theirs to start with `clarity epoch start`.
+And say plainly: everything up to now is epoch 1, and it is closed. The next
+thing they work on is theirs to start with `clarity epoch start`, and it will
+branch the repos listed above.
 
 Do not add any other items on your way out. `clarity idea add "..."` is theirs
 to run.

@@ -125,12 +125,34 @@ def test_both_destinations_are_named():
         assert own in adopt.ADOPT_MD, f"{own} is not listed as staying at the root"
 
 
+def _step(n: int) -> str:
+    doc = adopt.ADOPT_MD
+    start = doc.index(f"## {n} ")
+    return doc[start:doc.index(f"## {n + 1} ", start)]
+
+
+def test_the_goal_is_asked_before_anything_is_listed():
+    """It decides which repos go to workspace/ — so it comes before the first `ls`."""
+    first = _step(0)
+    assert "What are you trying to do in this project?" in first
+    assert "clarity objective set --overall" in first
+    assert "ls -a" not in first
+    assert adopt.ADOPT_MD.index("What are you trying to do") < adopt.ADOPT_MD.index("ls -a")
+
+
 def test_layout_instructions_are_read_before_anything_is_proposed():
     """A move against a written 'do not move X' costs a rebuild to undo."""
-    step_zero = adopt.ADOPT_MD.index("## 0 ")
-    assert step_zero < adopt.ADOPT_MD.index("## 1 ")
-    preamble = adopt.ADOPT_MD[step_zero:adopt.ADOPT_MD.index("## 1 ")]
-    assert "*PLAN*.md" in preamble and "README.md" in preamble
+    reading = _step(1)
+    assert "*PLAN*.md" in reading and "README.md" in reading
+    assert adopt.ADOPT_MD.index("## 1 ") < adopt.ADOPT_MD.index("## 2 ")
+
+
+def test_repos_split_by_whether_the_project_changes_them():
+    """Repos you change get branched; repos you only use must never be."""
+    assert "`3rd_party/`" in adopt.ADOPT_MD
+    assert "one question" in _step(2).lower()
+    assert "clarity repo add workspace/" in adopt.ADOPT_MD
+    assert "3rd_party/` stay off the list" in adopt.ADOPT_MD
 
 
 def test_whole_directories_move_together():
@@ -181,5 +203,5 @@ def test_an_already_tidy_project_is_a_valid_outcome():
 
 
 def test_objectives_are_asked_for_not_inferred():
-    assert "Ask the human for both" in adopt.ADOPT_MD
-    assert "Do not infer them" in adopt.ADOPT_MD
+    first = _step(0)
+    assert "Ask the human; do not infer it from the code" in first

@@ -162,15 +162,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_init.add_argument("--now", help="the current objective — what you're doing this week")
 
     _leaf(sub, "adopt", "set up in a folder that already has files in it",
-          "Does what init does, then writes .clarity/adopt.md — the procedure for "
-          "tidying the layout: everything that is not clarity's moves under src/, "
-          "leaving the root for .clarity/, EPOCHS/, LEARNINGS/, worklog.yaml and the "
-          "agent instructions files.\n\n"
+          "Does what init does, then writes .clarity/adopt.md — the procedure an "
+          "agent follows to tidy the layout. It asks what the project is for first, "
+          "then sorts the root: repos you change and the scripts around them go to "
+          "workspace/, repos you only use go to 3rd_party/, and logs and results from "
+          "work already done go into a baseline epoch, closed on arrival. The "
+          "workspace/ repos are listed with `clarity repo add`, so epochs branch "
+          "them.\n\n"
           "The moves are proposed as a table and wait for your yes, because moving a "
-          "build tree or a virtualenv costs a rebuild. Nothing is added to the "
-          "worklog: adoption tidies the folder, and the work in it stays yours to "
-          "write down. Point an agent at that file; it deletes it when done, and its "
-          "absence is what 'adoption finished' means.",
+          "build tree or a virtualenv costs a rebuild. Nothing in flight is added to "
+          "the worklog — what you are working on now stays yours to write down. Point "
+          "an agent at that file; it deletes it when done, and its absence is what "
+          "'adoption finished' means.",
           section=setup)
 
     p_install = _leaf(sub, "install", "tell your agents this project uses clarity",
@@ -400,10 +403,11 @@ def _adopt_text(project, doc: Path) -> str:
         f"clarity initialised in {project.root}\n"
         f"this folder has files in it that predate clarity, and the root is now "
         f"clarity's\n\n"
-        f"wrote {rel}: the procedure for tidying that up. What you work on moves\n"
-        f"under workspace/; logs and results from work already done go into a\n"
-        f"baseline epoch, closed on arrival. Every move is proposed as a table\n"
-        f"before anything is touched.\n"
+        f"wrote {rel}: the procedure for tidying that up. It starts by asking\n"
+        f"what the project is for. Repos you change go under workspace/, repos\n"
+        f"you only use under 3rd_party/, and logs and results from work already\n"
+        f"done into a baseline epoch, closed on arrival. Every move is proposed\n"
+        f"as a table before anything is touched.\n"
         f"It is written for an agent. Point one at it:\n\n"
         f'  "read {rel} and follow it"\n\n'
         f"Nothing in flight is added to the worklog. What you are working on now\n"

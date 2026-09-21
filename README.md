@@ -48,10 +48,16 @@ clarity adopt
 ```
 
 That sets the project up and writes `.clarity/adopt.md`: the procedure an agent
-follows to sort the root in two passes. Working material — checkouts, scripts,
-fixtures, virtualenvs — goes under `workspace/`. What's left is usually the record of
-work already done, and that goes into a baseline epoch, created and immediately closed.
-Directories move whole, never reaching inside one.
+follows. It asks what the project is for first, because that decides the sort:
+
+- **`workspace/`** — repos you change, plus the scripts, fixtures and virtualenvs
+  around them.
+- **`3rd_party/`** — repos you only use: a tool, a dependency, a harness.
+- **a baseline epoch** — logs, results and old experiments from work already done,
+  created and immediately closed.
+
+Directories move whole, never reaching inside one. If the root isn't a git repo, the
+agent offers to make it one, tracking only clarity's own files.
 
 Every move is proposed as a table and waits for your approval — moving a directory can
 break it, and only you know which ones you still need. Point an agent at it; the clarity
@@ -63,6 +69,26 @@ next thing you do is yours to start.
 
 The last step tells the agent to delete it. Its absence is what "adoption finished"
 means; there is no flag to set and no second copy to go stale.
+
+## A workspace of several repos
+
+When the code lives in checkouts under the root rather than in the root itself, list
+the ones you change:
+
+```sh
+clarity repo add workspace/mini-swe-agent
+clarity repo list
+```
+
+From then on `clarity epoch start` gives every listed repo the epoch's branch and a
+worktree at `EPOCHS/NNN_.../wt/<repo>`, and leaves the root alone. Repos you only use
+stay off the list. Close removes each worktree and records each repo's end commit;
+refresh catches every repo up, or none if any has uncommitted work. A start that fails
+in one repo undoes what it did in the others.
+
+The list is copied onto an epoch when it starts, so changing it later doesn't strand
+an epoch already in flight. With nothing listed, epochs branch the root — a single-repo
+project never needs this.
 
 ## What `init` creates
 
