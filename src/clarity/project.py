@@ -169,61 +169,29 @@ class Project:
         return int(text)
 
     def resolve_id(self, explicit: int | str | None = None) -> int:
-        """Explicit id, then cwd, then CLARITY_EPOCH, then the only active epoch."""
+        """The id the command was given. There is no fallback, on purpose.
+
+        Inferring it — from the cwd, an env var, or "the only active epoch" —
+        works right up until a second epoch is active, and then the same command
+        means something different with nothing on screen to say so. An agent that
+        gets a fresh shell per command cannot see any of that state. So the id is
+        always in the command, where a transcript shows which epoch was meant.
+        """
         if explicit is not None:
             return self.as_id(explicit)
 
-        from_cwd = self._id_from_cwd()
-        if from_cwd is not None:
-            return from_cwd
-
-        env = (os.environ.get("CLARITY_EPOCH") or "").strip()
-        if env:
-            if not env.isdigit():
-                raise ClarityError(f"CLARITY_EPOCH={env!r} is not an id", code=4)
-            return int(env)
-
-        active = [i for i in self.worklog.items if i.status in IN_FLIGHT]
-        if len(active) == 1:
-            return active[0].id
-        if not active:
-            raise ClarityError("no active epoch — pass an id, or start one", code=4)
-        listed = "\n".join(f"  {i.id:>3}  {i.name}" for i in active)
+        targetable = [i for i in self.worklog.items if i.status in IN_FLIGHT]
+        if not targetable:
+            raise ClarityError(
+                "this command needs an epoch id, and no epoch is in flight — "
+                "start one with `clarity epoch start <id>`",
+                code=4,
+            )
+        listed = "\n".join(f"  {i.id:>3}  {i.name}" for i in targetable)
         raise ClarityError(
-            "several epochs are active — pass an id, cd into one, or set CLARITY_EPOCH:\n"
-            + listed,
+            "this command needs an epoch id — pass one:\n" + listed,
             code=4,
         )
-
-    def _id_from_cwd(self) -> int | None:
-        cwd = Path.cwd().resolve()
-        for item in self.worklog.items:
-            folder = self.folder_of(item)
-            if not folder or not folder.exists():
-                continue
-            folder = folder.resolve()
-            if cwd == folder or folder in cwd.parents:
-                return item.id
-            worktrees = folder / "wt"
-            if not worktrees.is_dir():
-                continue
-            for child in worktrees.iterdir():
-                # a symlinked wt borrows the main checkout: it would match everywhere
-                if child.is_symlink():
-                    continue
-                target = child.resolve()
-                if cwd == target or target in cwd.parents:
-                    return item.id
-        return None
-
-    def env_exports(self, item_id: int | None = None) -> dict:
-        item = self.worklog.by_id(self.resolve_id(item_id))
-        folder = self.folder_of(item)
-        return {
-            "CLARITY_EPOCH": str(item.id),
-            "CLARITY_ROOT": str(self.root),
-            "CLARITY_EPOCH_DIR": str(folder) if folder else "",
-        }
 
     # ---------- generated output ----------
 

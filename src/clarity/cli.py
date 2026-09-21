@@ -24,14 +24,14 @@ EPILOG = """examples:
   clarity init --objective "Compare parser A and B"   set up here, answer two questions
   clarity idea add "flaky test on macOS" --type fix   capture it, no folder yet
   clarity epoch start 3                               idea or planned -> active
-  clarity note "ring buffer was 2x slower"            record what you tried
+  clarity note 3 "ring buffer was 2x slower"          record what you tried
   clarity epoch close 3 --outcome "bumped timeout"    -> done
   clarity q active --json                             what an agent calls
 
 ids:
-  Inside an epoch folder (or its worktree), or with CLARITY_EPOCH set, every command
-  that takes an id can omit it. With two epochs active and no id, clarity asks rather
-  than guessing.
+  Every command that acts on an epoch takes its id. Clarity never infers which epoch
+  you mean — not from the directory you are in, not from an env var, not from there
+  happening to be only one active. Pass it every time.
 
 exit codes:
   0 ok · 1 error · 2 validation failed · 3 not a clarity project · 4 refused
@@ -132,10 +132,7 @@ def _leaf(parent, name: str, help_: str, description: str | None = None,
 
 
 def _id_arg(node, what: str = "the epoch"):
-    node.add_argument(
-        "id", nargs="?",
-        help=f"id of {what} — omit it inside an epoch folder, or with CLARITY_EPOCH set",
-    )
+    node.add_argument("id", help=f"id of {what}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -204,20 +201,11 @@ def build_parser() -> argparse.ArgumentParser:
                 f"Named queries: {QUERY_NAMES}", section=look)
     p_q.add_argument("name", metavar="<name>", help=QUERY_NAMES)
     p_q.add_argument("arg", nargs="?", metavar="<arg>",
-                     help="the item id, for `q item` (optional inside an epoch folder)")
+                     help="the item id, for `q item`")
 
     p_path = _leaf(sub, "path", "print an epoch's folder — cd $(clarity path)", section=look)
     _id_arg(p_path)
 
-    p_env = _leaf(sub, "env", "shell exports for one epoch — eval $(clarity env 7)",
-                  "Prints CLARITY_EPOCH, CLARITY_ROOT and CLARITY_EPOCH_DIR, so commands "
-                  "in that shell can leave the id off.\n\n"
-                  "They last exactly as long as the shell does. That makes this a "
-                  "convenience for a terminal you sit in, and a trap for an agent that "
-                  "gets a fresh shell per command — there the export is gone by the next "
-                  "one, silently, and commands quietly act on the wrong epoch or none. "
-                  "If that is you, pass the id every time instead.", section=look)
-    _id_arg(p_env)
 
     # ---- objectives ----
     obj_rows: list = []
@@ -461,11 +449,6 @@ def run(args) -> int:
     elif args.command == "path":
         folder = project.path_of(args.id)
         emit(args, "path", {"path": str(folder)}, str(folder))
-
-    elif args.command == "env":
-        exports = project.env_exports(args.id)
-        emit(args, "env", exports,
-             "\n".join(f"export {k}={v}" for k, v in exports.items()))
 
     elif args.command == "objective":
         if action == "set":

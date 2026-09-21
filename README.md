@@ -92,21 +92,20 @@ keeps the branch.
 
 ## Several epochs at once
 
-Each epoch has its own worktree and branch, so parallel work is already isolated. Clarity
-works out which epoch you mean: an explicit id, else your cwd, else `CLARITY_EPOCH`, else the
-only active epoch — and it errors rather than guessing between two.
+Each epoch has its own worktree and branch, so parallel work is already isolated. Which
+epoch a command means is always in the command:
 
 ```sh
-eval $(clarity env 7)        # this pane, and anything it launches, is on epoch 7
 clarity claim 7              # say you're working it
-clarity note "tried X"       # no id needed
+clarity note 7 "tried X"
 clarity release 7
 ```
 
-`clarity env` lasts exactly as long as the shell that ran it. That's what you want in a
-terminal you sit in; it's a trap for an agent that gets a **fresh shell per command**, where
-the export is gone by the next one and commands quietly act on the wrong epoch, or none.
-If that's you, pass the id every time: `clarity note 7 "tried X"`.
+Clarity never infers the id — not from the directory you're in, not from an env var, not
+from there happening to be only one epoch active. Inference works right up until a second
+epoch starts, and then the same command means something different with nothing on screen
+to say so; an agent that gets a **fresh shell per command** can't see any of that state
+anyway. With the id in the command, a transcript shows which epoch each line hit.
 
 A lease is `EPOCHS/NNN_.../.lease` — owner, host, and when it was claimed. Another holder
 blocks a claim unless you pass `--steal`, which records who you took it from.

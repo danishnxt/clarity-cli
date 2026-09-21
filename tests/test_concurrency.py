@@ -106,35 +106,43 @@ def test_close_releases_the_lease(tmp_path):
     assert lease.read(root / item.folder) is None
 
 
-def test_cwd_decides_which_epoch(tmp_path, monkeypatch):
+def test_an_id_is_never_inferred(tmp_path, monkeypatch):
+    """No cwd, no env var, no "the only active one" — the id is in the command."""
     root = make_repo(tmp_path)
     Project.init(root, name="proj")
     project, ids = two_epochs(root)
 
-    with pytest.raises(ClarityError) as err:
-        project.resolve_id()  # two active, nothing to disambiguate
-    assert err.value.code == 4
-    assert "several epochs" in str(err.value)
+    # inside an epoch's own folder, and inside its worktree
+    for cwd in (root / project.worklog.by_id(ids[0]).folder / "LOGS",
+                root / project.worklog.by_id(ids[1]).folder / "wt" / root.name):
+        monkeypatch.chdir(cwd)
+        with pytest.raises(ClarityError) as err:
+            Project.find(root).resolve_id()
+        assert err.value.code == 4 and "needs an epoch id" in str(err.value)
 
-    monkeypatch.chdir(root / project.worklog.by_id(ids[1]).folder / "wt" / root.name)
-    assert Project.find(root).resolve_id() == ids[1]
-
-    monkeypatch.chdir(root / project.worklog.by_id(ids[0]).folder / "LOGS")
-    assert Project.find(root).resolve_id() == ids[0]
-
-
-def test_env_var_decides_when_cwd_is_neutral(tmp_path, monkeypatch):
-    root = make_repo(tmp_path)
-    Project.init(root, name="proj")
-    project, ids = two_epochs(root)
-
+    # a stale export from some other shell is not consulted either
     monkeypatch.chdir(root)
     monkeypatch.setenv("CLARITY_EPOCH", str(ids[1]))
-    assert Project.find(root).resolve_id() == ids[1]
+    with pytest.raises(ClarityError) as err:
+        Project.find(root).resolve_id()
+    assert err.value.code == 4
 
-    exports = Project.find(root).env_exports(ids[0])
-    assert exports["CLARITY_EPOCH"] == str(ids[0])
-    assert exports["CLARITY_EPOCH_DIR"].endswith(project.worklog.by_id(ids[0]).folder)
+    # and the refusal names what it could have meant
+    assert all(str(i) in str(err.value) for i in ids)
+
+
+def test_one_active_epoch_is_still_not_a_default(tmp_path, monkeypatch):
+    """The case that silently worked before: one epoch active, no id passed."""
+    root = make_repo(tmp_path)
+    Project.init(root, name="proj")
+    project = Project.find(root)
+    item = project.add("cache warmup", status="planned")
+    project.start(item.id)
+
+    monkeypatch.chdir(root)
+    with pytest.raises(ClarityError) as err:
+        Project.find(root).resolve_id()
+    assert err.value.code == 4
 
 
 def test_our_own_lease_is_not_a_refusal(tmp_path, monkeypatch):
@@ -173,7 +181,7 @@ def test_find_skips_a_worktree_copy_of_the_state(tmp_path, monkeypatch):
     monkeypatch.chdir(worktree)
     found = Project.find()
     assert found.root == root
-    assert found.resolve_id() == item.id
+    assert [i.id for i in found.worklog.items] == [item.id]  # the real one, not the copy
 
 
 def test_a_refused_lease_leaves_nothing_half_started(tmp_path):

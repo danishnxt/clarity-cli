@@ -76,8 +76,9 @@ _BODY = """- If `.clarity/adopt.md` exists, adoption is unfinished: read it firs
   rewritten from the commands. Below the marker in `EPOCH.md` is yours.
 - Start work with `clarity epoch start <id>`; it takes an idea straight to active.
   Then work in that epoch's folder: `clarity path`.
+- Every command that acts on an epoch takes its id, always: `clarity note 7
+  "..."`. Clarity never infers which epoch you mean and will refuse without one.
 - Claim before you work: `clarity claim <id>`, `clarity release <id>` when done.
-  Pass the id every time — `clarity env` lasts only for the shell it ran in.
 - Write a note the moment a decision changes — a reversal, an approach you
   rejected, a result that surprised you: `clarity note <id> "..."`. Not when
   work completes; in a long session it never does, and the record is what the
