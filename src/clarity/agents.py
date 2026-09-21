@@ -75,7 +75,7 @@ _BODY = """- If `.clarity/adopt.md` exists, adoption is unfinished: read it firs
 - Never hand-edit `worklog.yaml` or the generated block in `EPOCH.md` — both are
   rewritten from the commands. Below the marker in `EPOCH.md` is yours.
 - Start work with `clarity epoch start <id>`; it takes an idea straight to active.
-  Then work in that epoch's folder: `clarity path`.
+  Then work in that epoch's folder: `clarity path <id>`.
 - Every command that acts on an epoch takes its id, always: `clarity note 7
   "..."`. Clarity never infers which epoch you mean and will refuse without one.
 - Claim before you work: `clarity claim <id>`, `clarity release <id>` when done.

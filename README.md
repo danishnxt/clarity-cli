@@ -28,8 +28,9 @@ clarity epoch block 1 "waiting on upstream"
 clarity epoch unblock 1
 clarity epoch close 1 --outcome "bumped the timeout"
 clarity epoch reopen 1              # picked it back up; old outcome kept as a note
+clarity rename 1 "parser B only"    # scope moved; old name kept as a note
 
-cd $(clarity path)                  # the active epoch's folder
+cd $(clarity path 1)                # epoch 1's folder
 clarity status                      # in flight + up next
 clarity status --all
 clarity q active --json             # what an agent calls

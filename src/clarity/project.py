@@ -232,7 +232,7 @@ class Project:
         return sorted(f.name for f in plans.iterdir() if f.is_file() and not f.name.startswith("."))
 
     def path_of(self, item_id: int | None = None) -> Path:
-        """Where the work is. `cd $(clarity path)`."""
+        """Where the work is. `cd $(clarity path 7)`."""
         item = self.worklog.by_id(self.resolve_id(item_id))
         folder = self.folder_of(item)
         if not folder or not folder.is_dir():
@@ -498,6 +498,23 @@ class Project:
         with self._write():
             item = self.worklog.by_id(self.resolve_id(item_id))
             item.notes.append(Note(at=model_now(), text=text))
+        return item
+
+    def rename(self, item_id: int | None, name: str) -> Item:
+        """Change what an item is called. Its folder and branch keep their old slug.
+
+        Both are paths other things point at — a worktree, a shell's cwd, a remote —
+        and the id prefix already identifies them. The old name goes into a note, so
+        the item's history still reads in order.
+        """
+        name = " ".join(name.split())
+        if not name:
+            raise ClarityError("a name can't be empty", code=4)
+        with self._write():
+            item = self.worklog.by_id(self.resolve_id(item_id))
+            if name != item.name:
+                item.notes.append(Note(at=model_now(), text=f"renamed from: {item.name}"))
+                item.name = name
         return item
 
     def block(self, item_id: int | None, reason: str) -> Item:

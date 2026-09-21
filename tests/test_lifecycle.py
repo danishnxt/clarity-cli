@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from clarity import ClarityError, Project  # noqa: E402
@@ -357,3 +359,41 @@ def test_a_date_only_note_still_counts(tmp_path):
     assert "last note" in (render.note_age(item) or "")
     render.status_text(project.worklog.objectives, [item])
     assert "`2020-01-01`" in render.epoch_md(item, None)
+
+
+def test_rename_changes_the_name_and_nothing_it_points_at(tmp_path):
+    """Scope shifts; the title should follow. The folder and branch are paths — they stay."""
+    root = make_repo(tmp_path)
+    Project.init(root, name="proj")
+    project = Project.find(root)
+    item = project.add("cache warmup", status="planned")
+    project.start(item.id)
+    before = project.worklog.by_id(item.id)
+    folder, branch = before.folder, before.branch
+
+    project.rename(item.id, "  cache warmup,   and eviction  ")
+
+    after = Project.find(root).worklog.by_id(item.id)
+    assert after.name == "cache warmup, and eviction"   # whitespace collapsed
+    assert (after.folder, after.branch) == (folder, branch)
+    assert after.notes[-1].text == "renamed from: cache warmup"
+    assert "cache warmup, and eviction" in (root / folder / "EPOCH.md").read_text()
+
+
+def test_rename_an_idea_and_the_edge_cases(tmp_path):
+    root = make_repo(tmp_path)
+    Project.init(root, name="proj")
+    project = Project.find(root)
+    idea = project.add("flaky test")
+
+    project.rename(idea.id, "flaky test on macOS")
+    assert Project.find(root).worklog.by_id(idea.id).name == "flaky test on macOS"
+
+    # the same name again changes nothing and leaves no note
+    notes = len(Project.find(root).worklog.by_id(idea.id).notes)
+    Project.find(root).rename(idea.id, "flaky test on macOS")
+    assert len(Project.find(root).worklog.by_id(idea.id).notes) == notes
+
+    with pytest.raises(ClarityError) as err:
+        Project.find(root).rename(idea.id, "   ")
+    assert err.value.code == 4

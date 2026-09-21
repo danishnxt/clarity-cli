@@ -203,7 +203,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_q.add_argument("arg", nargs="?", metavar="<arg>",
                      help="the item id, for `q item`")
 
-    p_path = _leaf(sub, "path", "print an epoch's folder — cd $(clarity path)", section=look)
+    p_path = _leaf(sub, "path", "print an epoch's folder — cd $(clarity path 7)", section=look)
     _id_arg(p_path)
 
 
@@ -315,6 +315,14 @@ def build_parser() -> argparse.ArgumentParser:
     _id_arg(p_note)
     p_note.add_argument("text", nargs="?", metavar="<text>", help="what you tried")
 
+    p_rename = _leaf(sub, "rename", "change an item's name after the fact",
+                     "For when the scope shifts and the title stops matching the work. "
+                     "The folder and branch keep their old slug — they are paths other "
+                     "things point at, and the id prefix already identifies them. The "
+                     "old name is kept as a note.", section=work)
+    _id_arg(p_rename, "the item")
+    p_rename.add_argument("name", metavar="<name>", help="the new name, in one line")
+
     p_claim = _leaf(sub, "claim", "take the lease on an epoch",
                     "Says who is working an epoch, and refuses a second claim. It is a "
                     "warning, not a lock — nothing stops another agent editing the "
@@ -340,7 +348,8 @@ def _item_line(item) -> str:
 
 
 def _split_id_text(value: str | None, text: str | None) -> tuple[int | None, str | None]:
-    """`epoch close 7 "done"`, or inside an epoch folder `epoch close "done"`."""
+    """`epoch close 7 "done"`. A lone non-numeric arg is the text, and the id is
+    missing — resolve_id then refuses and lists the ids it could have meant."""
     if value is None:
         return None, text
     if str(value).isdigit():
@@ -522,6 +531,10 @@ def run(args) -> int:
             item = project.close(target, outcome, abandoned=args.abandon)
             emit(args, "epoch.close", item.to_dict(),
                  f"epoch {item.id} {item.status}: {outcome}")
+
+    elif args.command == "rename":
+        item = project.rename(args.id, args.name)
+        emit(args, "rename", item.to_dict(), f"{item.id} is now: {item.name}")
 
     elif args.command == "note":
         target, text = _split_id_text(args.id, args.text)
