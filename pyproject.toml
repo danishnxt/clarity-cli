@@ -1,16 +1,36 @@
 [project]
-name = "clarity"
+name = "clarity-ctl"
 version = "0.1.0"
 description = "Project state you can read in one command, and your agent can query without crawling the tree."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Danish" }]
 requires-python = ">=3.10"
 dependencies = ["PyYAML>=6.0"]
+keywords = ["project-management", "cli", "git", "worktree", "agents", "worklog"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Version Control :: Git",
+]
+
+# [project.urls]
+# Homepage = "https://github.com/<you>/clarity-ctl"
 
 [project.scripts]
-clarity = "clarity.cli:main"
+clarity-ctl = "clarity.cli:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/clarity"]
+
+# The repo also holds clarity's own worklog and EPOCHS/ — this project uses the
+# tool on itself. None of that belongs in a published source archive.
+[tool.hatch.build.targets.sdist]
+include = ["src/clarity", "tests", "README.md", "LICENSE", "pyproject.toml"]

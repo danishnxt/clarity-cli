@@ -108,7 +108,7 @@ def claim(folder: Path, steal: bool = False, label: str | None = None) -> dict:
             raise ClarityError(
                 f"epoch is leased by {describe(current)}\n"
                 "  check whether that agent is still working before you take it\n"
-                "  then: clarity claim <id> --steal",
+                "  then: clarity-ctl claim <id> --steal",
                 code=4,
             )
         if current and steal and not held_by_us(current):

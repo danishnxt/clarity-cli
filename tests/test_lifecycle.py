@@ -355,7 +355,7 @@ def test_a_stale_note_on_an_epoch_in_flight_is_surfaced(tmp_path):
     item.notes.append(Note(at="2020-01-01 09:00", text="ancient"))
 
     assert "last note" in (render.note_age(item) or "")
-    assert f"clarity note {item.id}" in render.status_text(
+    assert f"clarity-ctl note {item.id}" in render.status_text(
         project.worklog.objectives, [item])
 
 

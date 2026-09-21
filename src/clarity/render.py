@@ -4,7 +4,7 @@ Nothing here reads state from disk; it is handed model objects and returns text.
 
 There is deliberately no STATUS.md renderer. The status view mixes the worklog with
 leases and git ahead/behind — machine-local facts that change with no command running
-— so a committed file could only ever be wrong about them. `clarity status` composes
+— so a committed file could only ever be wrong about them. `clarity-ctl status` composes
 it on every run instead, which is the one place all three inputs are live.
 """
 
@@ -116,12 +116,12 @@ def _line(item: Item, leases: dict | None = None, cols: int | None = None,
     if quiet:
         # its own line for the same reason the refresh warning gets one: it is about
         # the record, not about where the work lives
-        lines += _wrap(f"⚠ {quiet} — clarity note {item.id} \"...\"", gutter, gutter, cols)
+        lines += _wrap(f"⚠ {quiet} — clarity-ctl note {item.id} \"...\"", gutter, gutter, cols)
     trails = (stale or {}).get(item.id)
     if trails:
         # its own line, not tacked onto the folder path: main moving under an epoch is
         # the thing you want to notice, and it must not wrap into the path above it
-        lines += _wrap(f"⚠ {trails} — clarity epoch refresh {item.id}", gutter, gutter, cols)
+        lines += _wrap(f"⚠ {trails} — clarity-ctl epoch refresh {item.id}", gutter, gutter, cols)
     return "\n".join(lines)
 
 
@@ -163,7 +163,7 @@ def status_text(objectives: Objectives, items: list[Item], show_all: bool = Fals
 
     if not show_all:
         closed = len([i for i in items if i.status in CLOSED])
-        out.append(f"{closed} closed or dropped — clarity status --all")
+        out.append(f"{closed} closed or dropped — clarity-ctl status --all")
     if not branches:
         out.append("no repo for epochs to branch — they get a folder, but no branch or "
                    "worktree")
@@ -175,7 +175,7 @@ def epoch_md(item: Item, existing: str | None = None) -> str:
 
     Deliberately does not index PLANS/. That directory is one anyone can drop a file
     into, so no command can know when it changed — caching the listing here is what
-    forced every epoch to be re-rendered on every write. `clarity q item` lists it live.
+    forced every epoch to be re-rendered on every write. `clarity-ctl q item` lists it live.
     """
     lines = [
         MARK,

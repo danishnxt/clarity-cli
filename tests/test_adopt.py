@@ -114,8 +114,8 @@ def test_the_procedure_only_names_commands_that_exist():
     commands = set(parser._subparsers._group_actions[0].choices)
 
     # Only invocations: inside backticks, or in an indented code block.
-    named = set(re.findall(r"`clarity ([a-z]+)", adopt.ADOPT_MD))
-    named |= set(re.findall(r"^ {4}clarity ([a-z]+)", adopt.ADOPT_MD, re.M))
+    named = set(re.findall(r"`clarity-ctl ([a-z]+)", adopt.ADOPT_MD))
+    named |= set(re.findall(r"^ {4}clarity-ctl ([a-z]+)", adopt.ADOPT_MD, re.M))
     assert named, "extracted no commands — the test stopped testing anything"
     assert named <= commands, f"adopt.md names commands that do not exist: {named - commands}"
 
@@ -135,10 +135,10 @@ def test_adoption_does_not_inventory_in_flight_work():
 
 def test_the_baseline_epoch_is_created_closed():
     """The one item adoption creates describes work already done, so it starts done."""
-    assert "clarity epoch new" in adopt.ADOPT_MD
-    assert "clarity epoch close" in adopt.ADOPT_MD
-    close_at = adopt.ADOPT_MD.index("clarity epoch close")
-    new_at = adopt.ADOPT_MD.index("clarity epoch new")
+    assert "clarity-ctl epoch new" in adopt.ADOPT_MD
+    assert "clarity-ctl epoch close" in adopt.ADOPT_MD
+    close_at = adopt.ADOPT_MD.index("clarity-ctl epoch close")
+    new_at = adopt.ADOPT_MD.index("clarity-ctl epoch new")
     assert new_at < close_at, "close must follow new — the epoch is never left in flight"
     assert "Do not create an empty epoch" in adopt.ADOPT_MD
 
@@ -165,7 +165,7 @@ def test_the_goal_is_asked_before_anything_is_listed():
     """It decides which repos go to workspace/ — so it comes before the first `ls`."""
     first = _step(0)
     assert "What are you trying to do in this project?" in first
-    assert 'clarity objective set "' in first
+    assert 'clarity-ctl objective set "' in first
     assert "ls -a" not in first
     assert adopt.ADOPT_MD.index("What are you trying to do") < adopt.ADOPT_MD.index("ls -a")
 
@@ -181,7 +181,7 @@ def test_repos_split_by_whether_the_project_changes_them():
     """Repos you change get branched; repos you only use must never be."""
     assert "`3rd_party/`" in adopt.ADOPT_MD
     assert "one question" in _step(2).lower()
-    assert "clarity repo add workspace/" in adopt.ADOPT_MD
+    assert "clarity-ctl repo add workspace/" in adopt.ADOPT_MD
     assert "3rd_party/` stay off the list" in adopt.ADOPT_MD
 
 

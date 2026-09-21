@@ -10,7 +10,7 @@ sort. Then two passes, because a research workspace is not all source. Pass one
 takes the repos and splits them: the ones the project changes go under
 `workspace/` with the scripts and virtualenvs around them, and the ones it only
 uses — a tool, a dependency — go under `3rd_party/`. The workspace repos are
-listed with `clarity repo add`, which is what makes epochs branch them. Pass two
+listed with `clarity-ctl repo add`, which is what makes epochs branch them. Pass two
 takes what is left, which in a project that has been running a while is usually
 the larger pile: run outputs, results, logs, old experiments. That is a record
 of work already done, so it goes into a baseline epoch, created and immediately
@@ -58,7 +58,7 @@ DOC = "adopt.md"
 
 ADOPT_MD = """# Adopting clarity in this project
 
-Someone ran `clarity adopt` here. The scaffolding exists now, and this project
+Someone ran `clarity-ctl adopt` here. The scaffolding exists now, and this project
 already had files in it before clarity arrived.
 
 Your job is to tidy the layout, and only that. Everything that is not clarity's
@@ -88,7 +88,7 @@ Before you list a single directory, ask the human:
 
 One or two lines is plenty. Record it straight away:
 
-    clarity objective set "what this project is for"
+    clarity-ctl objective set "what this project is for"
 
 Ask the human; do not infer it from the code — you haven't read any yet, and
 a repo's contents say what it does, not what they want from it. If they
@@ -214,7 +214,7 @@ Move only the rows that survived. Three rules:
 A nested checkout moves as a whole: its `.git` travels with it and its history
 is untouched. Do not open it, and do not try to merge it into the outer repo.
 
-**If the root was not a git repo**, `clarity adopt` already made it one, for
+**If the root was not a git repo**, `clarity-ctl adopt` already made it one, for
 clarity's own files only: its `.gitignore` keeps out `workspace/`, `3rd_party/`
 and every epoch's `LOGS/`, because the nested repos have histories of their own
 and the records can be large. Epochs never branch this repo. Do not commit to
@@ -227,11 +227,11 @@ against your table.
 
 Every repo that went to `workspace/` gets one line:
 
-    clarity repo add workspace/mini-swe-agent
+    clarity-ctl repo add workspace/mini-swe-agent
 
-From then on, `clarity epoch start` gives each listed repo the epoch's branch
+From then on, `clarity-ctl epoch start` gives each listed repo the epoch's branch
 and a worktree. Repos in `3rd_party/` stay off the list — nobody changes them,
-so nothing should branch them. `clarity repo list` shows what you added.
+so nothing should branch them. `clarity-ctl repo list` shows what you added.
 
 If the project root is itself the one repo and nothing nested is changed, add
 nothing: with no repos listed, epochs branch the root.
@@ -241,22 +241,22 @@ nothing: with no repos listed, epochs branch the root.
 If pass two found anything, give it an epoch of its own. It is created and
 immediately closed, because it describes work that already happened:
 
-    clarity epoch new "baseline: work before clarity" --type chore
-    clarity epoch close <id> --outcome "existing logs and results, moved in at adoption"
+    clarity-ctl epoch new "baseline: work before clarity" --type chore
+    clarity-ctl epoch close <id> --outcome "existing logs and results, moved in at adoption"
 
-`clarity path <id>` prints its folder. Put the records under its `LOGS/`, and
+`clarity-ctl path <id>` prints its folder. Put the records under its `LOGS/`, and
 analysis or plots under `ANALYSIS/` and `VIZ/` if the split is obvious — if it
 is not, `LOGS/` for all of it is fine. Do not reorganise what is inside the
 directories you moved. They are someone's existing work, not yours to sort.
 
-Then `clarity note <id> "..."` with one line on where the material came from.
+Then `clarity-ctl note <id> "..."` with one line on where the material came from.
 
 If pass two found nothing, skip this step. Do not create an empty epoch.
 
 ## 8 · Finish
 
-    clarity status          # objectives, the baseline epoch closed, nothing in flight
-    clarity repo list       # the repos epochs will branch
+    clarity-ctl status          # objectives, the baseline epoch closed, nothing in flight
+    clarity-ctl repo list       # the repos epochs will branch
     rm .clarity/adopt.md    # adoption is over; this file is the only marker
 
 Then tell the human what moved, what you left alone and why, and what now needs
@@ -264,10 +264,10 @@ regenerating — the builds to re-run, the virtualenvs to recreate, the caches
 that will refill themselves. Give them the commands.
 
 And say plainly: everything up to now is epoch 1, and it is closed. The next
-thing they work on is theirs to start with `clarity epoch start`, and it will
+thing they work on is theirs to start with `clarity-ctl epoch start`, and it will
 branch the repos listed above.
 
-Do not add any other items on your way out. `clarity idea add "..."` is theirs
+Do not add any other items on your way out. `clarity-ctl idea add "..."` is theirs
 to run.
 """
 

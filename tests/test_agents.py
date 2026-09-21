@@ -163,13 +163,13 @@ def test_claude_imports_agents_instead_of_copying_it(tmp_path):
     agents_md = (root / "AGENTS.md").read_text()
     claude_md = (root / "CLAUDE.md").read_text()
 
-    assert "clarity status" in agents_md          # AGENTS.md carries the body
+    assert "clarity-ctl status" in agents_md          # AGENTS.md carries the body
     assert "@AGENTS.md" in claude_md              # CLAUDE.md imports it
-    assert "clarity status" not in claude_md      # and does not repeat it
+    assert "clarity-ctl status" not in claude_md      # and does not repeat it
 
 
 def test_no_file_carries_a_copy_of_the_objective(tmp_path):
-    """The objective lives in worklog.yaml. clarity status prints it; nothing caches it."""
+    """The objective lives in worklog.yaml. clarity-ctl status prints it; nothing caches it."""
     root = make_repo(tmp_path)
     Project.init(root, name="proj", overall="ship the parser")
     project = Project.find(root)

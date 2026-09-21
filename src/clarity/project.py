@@ -88,7 +88,7 @@ class Project:
             return Project(candidate)
         raise ClarityError(
             "not a clarity project — no .clarity/ here or above\n"
-            "  set one up with: clarity init",
+            "  set one up with: clarity-ctl init",
             code=3,
         )
 
@@ -202,7 +202,7 @@ class Project:
         if not targetable:
             raise ClarityError(
                 "this command needs an epoch id, and no epoch is in flight — "
-                "start one with `clarity epoch start <id>`",
+                "start one with `clarity-ctl epoch start <id>`",
                 code=4,
             )
         listed = "\n".join(f"  {i.id:>3}  {i.name}" for i in targetable)
@@ -250,7 +250,7 @@ class Project:
         return sorted(f.name for f in plans.iterdir() if f.is_file() and not f.name.startswith("."))
 
     def path_of(self, item_id: int | None = None) -> Path:
-        """Where the work is. `cd $(clarity path 7)`."""
+        """Where the work is. `cd $(clarity-ctl path 7)`."""
         item = self.worklog.by_id(self.resolve_id(item_id))
         folder = self.folder_of(item)
         if not folder or not folder.is_dir():
@@ -300,7 +300,7 @@ class Project:
 
     def set_objective(self, text: str) -> None:
         # Nothing to regenerate: the objective lives in worklog.yaml and is printed by
-        # `clarity status`. No file carries a copy of it.
+        # `clarity-ctl status`. No file carries a copy of it.
         with self._write():
             self.worklog.objectives.overall = text
 
@@ -401,7 +401,7 @@ class Project:
             if closed and not reopen:
                 raise ClarityError(
                     f"item {item_id} is {item.status} — pick it back up with:\n"
-                    f"  clarity epoch reopen {item_id}",
+                    f"  clarity-ctl epoch reopen {item_id}",
                     code=4,
                 )
             if closed:
@@ -653,7 +653,7 @@ class Project:
         with self._write():
             item = self.worklog.by_id(self.resolve_id(item_id))
             if item.status not in IN_FLIGHT:
-                hint = (f"start it first: clarity epoch start {item.id}"
+                hint = (f"start it first: clarity-ctl epoch start {item.id}"
                         if item.status in FUTURE else "it's closed")
                 raise ClarityError(
                     f"item {item.id} is {item.status} — only an active epoch can be "
@@ -711,7 +711,7 @@ class Project:
         views = {
             "active": IN_FLIGHT,
             "future": FUTURE,
-            # what `clarity status` prints: both groups, so the two surfaces agree
+            # what `clarity-ctl status` prints: both groups, so the two surfaces agree
             "current": IN_FLIGHT | FUTURE,
             "inactive": CLOSED,
             "all": set(STATUSES),

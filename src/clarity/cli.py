@@ -21,12 +21,12 @@ from .store import ClarityError
 VERSION = "0.1.0"
 
 EPILOG = """examples:
-  clarity init --objective "Compare parser A and B"   set up here, answer two questions
-  clarity idea add "flaky test on macOS" --type fix   capture it, no folder yet
-  clarity epoch start 3                               idea or planned -> active
-  clarity note 3 "ring buffer was 2x slower"          record what you tried
-  clarity epoch close 3 --outcome "bumped timeout"    -> done
-  clarity q active --json                             what an agent calls
+  clarity-ctl init --objective "Compare parser A and B"   set up here, answer two questions
+  clarity-ctl idea add "flaky test on macOS" --type fix   capture it, no folder yet
+  clarity-ctl epoch start 3                               idea or planned -> active
+  clarity-ctl note 3 "ring buffer was 2x slower"          record what you tried
+  clarity-ctl epoch close 3 --outcome "bumped timeout"    -> done
+  clarity-ctl q active --json                             what an agent calls
 
 ids:
   Every command that acts on an epoch takes its id. Clarity never infers which epoch
@@ -56,7 +56,7 @@ SECTIONS: list[tuple[str, list[tuple[str, str]]]] = []
 
 
 def _section(title: str) -> list:
-    """A divided group in `clarity --help`. argparse has no notion of these."""
+    """A divided group in `clarity-ctl --help`. argparse has no notion of these."""
     rows: list[tuple[str, str]] = []
     SECTIONS.append((title, rows))
     return rows
@@ -137,7 +137,7 @@ def _id_arg(node, what: str = "the epoch"):
 
 def build_parser() -> argparse.ArgumentParser:
     parser = _Parser(
-        prog="clarity",
+        prog="clarity-ctl",
         description="Project state you can read in one command, and your agent can "
                     "query without crawling the tree.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -166,7 +166,7 @@ def build_parser() -> argparse.ArgumentParser:
           "then sorts the root: repos you change and the scripts around them go to "
           "workspace/, repos you only use go to 3rd_party/, and logs and results from "
           "work already done go into a baseline epoch, closed on arrival. The "
-          "workspace/ repos are listed with `clarity repo add`, so epochs branch "
+          "workspace/ repos are listed with `clarity-ctl repo add`, so epochs branch "
           "them. A root that is not a git repo becomes one, for clarity's own files "
           "only, with nothing committed.\n\n"
           "The moves are proposed as a table and wait for your yes, because moving a "
@@ -206,7 +206,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_q.add_argument("arg", nargs="?", metavar="<arg>",
                      help="the item id, for `q item`")
 
-    p_path = _leaf(sub, "path", "print an epoch's folder — cd $(clarity path 7)", section=look)
+    p_path = _leaf(sub, "path", "print an epoch's folder — cd $(clarity-ctl path 7)", section=look)
     _id_arg(p_path)
 
 
@@ -215,7 +215,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_obj = _leaf(sub, "objective", "what this project is for", section=work)
     obj = p_obj.add_subparsers(dest="action", required=True, metavar="<action>")
     p_obj_set = _leaf(obj, "set", "say what the project is for, in one line",
-                      description="Printed at the top of clarity status; no file keeps a "
+                      description="Printed at the top of clarity-ctl status; no file keeps a "
                       "copy. What is being worked on right now is not an objective — "
                       "that is what `In flight` shows.", into=obj_rows)
     p_obj_set.add_argument("text", metavar="<text>", help="the objective, in one line")
@@ -262,7 +262,7 @@ def build_parser() -> argparse.ArgumentParser:
           "Creates EPOCHS/NNN_date__slug and marks the idea `planned`. No branch, no "
           "worktree, no lease — nothing is started.\n\n"
           "Use it when you want somewhere to drop notes, data or a sketch before the "
-          "work begins. If you're starting now, skip it: `clarity epoch start <id>` "
+          "work begins. If you're starting now, skip it: `clarity-ctl epoch start <id>` "
           "takes an idea straight to active and makes the folder anyway.",
           into=idea_rows,
           ).add_argument("id", metavar="<id>", help="the idea to promote")
@@ -388,9 +388,9 @@ def _first_run(project) -> str:
         f"clarity initialised in {project.root}\n\n"
         f"{project.status_text()}\n"
         "next:\n"
-        '  clarity idea add "the first thing you want to fix"\n'
-        "  clarity epoch start 1        # -> active: branch, worktree, lease\n"
-        "  clarity --help               # every command\n"
+        '  clarity-ctl idea add "the first thing you want to fix"\n'
+        "  clarity-ctl epoch start 1        # -> active: branch, worktree, lease\n"
+        "  clarity-ctl --help               # every command\n"
     )
 
 
@@ -509,17 +509,17 @@ def run(args) -> int:
             item = project.add(args.text, type_=args.type, evidence=args.evidence)
             emit(args, "idea.add", item.to_dict(),
                  f"idea {item.id}: {item.name}\n"
-                 f"  start it with: clarity epoch start {item.id}")
+                 f"  start it with: clarity-ctl epoch start {item.id}")
         elif action == "list":
             human = "\n".join(
                 _item_line(i) for i in project.worklog.with_status({"idea", "planned"})
-            ) or "no ideas yet — clarity idea add \"...\""
+            ) or "no ideas yet — clarity-ctl idea add \"...\""
             emit(args, "idea.list", project.query("future"), human)
         else:
             item = project.promote(project.as_id(args.id))
             emit(args, "idea.promote", item.to_dict(),
                  f"{item.id} promoted to planned — {item.folder}\n"
-                 f"  begin work with: clarity epoch start {item.id}")
+                 f"  begin work with: clarity-ctl epoch start {item.id}")
 
     elif args.command == "epoch":
         if action == "new":
@@ -527,7 +527,7 @@ def run(args) -> int:
                                evidence=args.evidence)
             emit(args, "epoch.new", item.to_dict(),
                  f"epoch {item.id} — {item.folder}\n"
-                 f"  begin work with: clarity epoch start {item.id}")
+                 f"  begin work with: clarity-ctl epoch start {item.id}")
         elif action == "start":
             item, warnings = project.start(project.resolve_id(args.id), branch=args.branch)
             if args.json:
@@ -572,7 +572,7 @@ def run(args) -> int:
     elif args.command == "note":
         target, text = _split_id_text(args.id, args.text)
         if not text:
-            raise ClarityError('nothing to note: clarity note [id] "what you tried"', code=4)
+            raise ClarityError('nothing to note: clarity-ctl note [id] "what you tried"', code=4)
         item = project.note(target, text)
         emit(args, "note", item.to_dict(), f"noted on {item.id} ({len(item.notes)} so far)")
 
@@ -600,7 +600,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"ok": False, "error": str(err), "code": err.code,
                               "version": VERSION}, indent=2))
         else:
-            print(f"clarity: {err}", file=sys.stderr)
+            print(f"clarity-ctl: {err}", file=sys.stderr)
         return err.code
     except KeyboardInterrupt:
         return 130

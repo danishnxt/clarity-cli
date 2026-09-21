@@ -20,7 +20,7 @@ It is gone. It was generated from config.yaml and the current objective, which
 made it a cached copy of state that already lives in worklog.yaml — a second
 place to keep in sync, and one that quietly fell behind its own generator. The
 block below is a constant instead, so there is nothing to regenerate and nothing
-to go stale. The objective is not in it: `clarity status` prints that, live.
+to go stale. The objective is not in it: `clarity-ctl status` prints that, live.
 
 AGENTS.md carries the block. CLAUDE.md carries a one-line import of AGENTS.md
 rather than a copy, so there is exactly one body of text to read or change. The
@@ -67,20 +67,20 @@ END = "<!-- CLARITY:END -->"
 
 _BODY = """- If `.clarity/adopt.md` exists, adoption is unfinished: read it first and do
   what it says. It ends by telling you to delete it.
-- `clarity status` — objective, what's in flight, what's next.
-  `clarity --help` — every command.
-- `clarity q active --json`, `clarity q item <id> --json` — for you. Every read
+- `clarity-ctl status` — objective, what's in flight, what's next.
+  `clarity-ctl --help` — every command.
+- `clarity-ctl q active --json`, `clarity-ctl q item <id> --json` — for you. Every read
   takes `--json` and answers `{ok, command, data, warnings, version}`.
 - Exit codes: 0 ok · 1 error · 2 validation · 3 not a clarity project · 4 refused.
 - Never hand-edit `worklog.yaml` or the generated block in `EPOCH.md` — both are
   rewritten from the commands. Below the marker in `EPOCH.md` is yours.
-- Start work with `clarity epoch start <id>`; it takes an idea straight to active.
-  Then work in that epoch's folder: `clarity path <id>`.
-- Every command that acts on an epoch takes its id, always: `clarity note 7
+- Start work with `clarity-ctl epoch start <id>`; it takes an idea straight to active.
+  Then work in that epoch's folder: `clarity-ctl path <id>`.
+- Every command that acts on an epoch takes its id, always: `clarity-ctl note 7
   "..."`. Clarity never infers which epoch you mean and will refuse without one.
-- Claim before you work: `clarity claim <id>`, `clarity release <id>` when done.
+- Claim before you work: `clarity-ctl claim <id>`, `clarity-ctl release <id>` when done.
 - Write a note the moment a decision changes — a reversal, an approach you
-  rejected, a result that surprised you: `clarity note <id> "..."`. Not when
+  rejected, a result that surprised you: `clarity-ctl note <id> "..."`. Not when
   work completes; in a long session it never does, and the record is what the
   next session has instead of this conversation."""
 

@@ -1,4 +1,4 @@
-# clarity
+# clarity-ctl
 
 **Project state you can read in one command, and your coding agent can query without crawling the tree.**
 
@@ -11,7 +11,7 @@ serves it as JSON to an agent. Nothing in it needs a model.
   else is generated from it or computed when asked, so no copy can drift.
 - **Epochs, not tickets.** A piece of work gets a folder, a git branch and its own
   worktree when it starts, so several can run side by side without touching each other.
-- **A record that outlives the session.** `clarity note` writes down what was tried and
+- **A record that outlives the session.** `clarity-ctl note` writes down what was tried and
   why it changed, where the next person or agent will find it.
 - **Built for agents.** Every read takes `--json`, exit codes are a contract, and
   commands always name the epoch they act on, so there is nothing to guess.
@@ -20,31 +20,34 @@ serves it as JSON to an agent. Nothing in it needs a model.
 
 ## Install
 
-Requires Python 3.10+ and git. From a clone of this repo:
+Requires Python 3.10+ and git.
 
 ```sh
-uv tool install --editable .        # or: pip install -e .
-clarity --version
+uv tool install clarity-ctl         # or: pipx install clarity-ctl
+clarity-ctl --version
 ```
+
+`uvx clarity-ctl status` runs it without installing. From a clone of this repo:
+`uv tool install --editable .`
 
 ## Quick start
 
 ```sh
 cd ~/parser
-clarity init --objective "Make the parser fast enough for 1GB inputs"
+clarity-ctl init --objective "Make the parser fast enough for 1GB inputs"
 
-clarity idea add "flaky test on macOS" --type fix
-clarity idea add "try a ring buffer for the tokenizer" --type experiment
-clarity idea add "document the config file" --type chore
+clarity-ctl idea add "flaky test on macOS" --type fix
+clarity-ctl idea add "try a ring buffer for the tokenizer" --type experiment
+clarity-ctl idea add "document the config file" --type chore
 
-clarity epoch start 2               # branch, worktree and folder for idea 2
-clarity note 2 "ring buffer 2x slower than the deque on small inputs — keeping the deque below 64KB"
+clarity-ctl epoch start 2               # branch, worktree and folder for idea 2
+clarity-ctl note 2 "ring buffer 2x slower than the deque on small inputs — keeping the deque below 64KB"
 
-clarity epoch start 1
-clarity epoch block 1 "waiting on the CI image fix upstream"
+clarity-ctl epoch start 1
+clarity-ctl epoch block 1 "waiting on the CI image fix upstream"
 ```
 
-`clarity status` shows where things stand:
+`clarity-ctl status` shows where things stand:
 
 ```
 OBJECTIVE  Make the parser fast enough for 1GB inputs
@@ -61,15 +64,15 @@ Up next (1)
 ────────────────────────────────────────────────────────────────────────
   · IDEA       3  document the config file
 
-0 closed or dropped — clarity status --all
+0 closed or dropped — clarity-ctl status --all
 ```
 
 When the work is finished:
 
 ```sh
-clarity epoch close 2 --outcome "kept the deque; ring buffer only above 64KB"
-clarity epoch reopen 2              # back to active; the old outcome is kept as a note
-clarity rename 2 "tokenizer buffers" # the old name is kept as a note too
+clarity-ctl epoch close 2 --outcome "kept the deque; ring buffer only above 64KB"
+clarity-ctl epoch reopen 2              # back to active; the old outcome is kept as a note
+clarity-ctl rename 2 "tokenizer buffers" # the old name is kept as a note too
 ```
 
 ## How it works
@@ -129,15 +132,15 @@ Each epoch's `EPOCH.md` is rewritten from the worklog whenever the epoch changes
 
 ## Working with agents
 
-`clarity init` writes a short marker-fenced block into `AGENTS.md` (and `CLAUDE.md`
+`clarity-ctl init` writes a short marker-fenced block into `AGENTS.md` (and `CLAUDE.md`
 imports it). It tells any agent to query clarity instead of crawling the tree, to claim
 an epoch before working on it, and to write a note when a decision changes. Your other
 content in those files is left alone.
 
 ```sh
-clarity install            # this repo: AGENTS.md, CLAUDE.md, plus GEMINI.md etc. if present
-clarity install --global   # your own agents: ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md, ...
-clarity install --remove   # take the block back out
+clarity-ctl install            # this repo: AGENTS.md, CLAUDE.md, plus GEMINI.md etc. if present
+clarity-ctl install --global   # your own agents: ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md, ...
+clarity-ctl install --remove   # take the block back out
 ```
 
 The block disables itself in folders without a `worklog.yaml`, so one global install is
@@ -148,9 +151,9 @@ safe in every project you open.
 Every read takes `--json` and answers with the same envelope:
 
 ```sh
-clarity q active --json      # in flight: active and blocked
-clarity q current --json     # what `status` shows
-clarity q item 2 --json      # one item, with its lease and PLANS/ listing
+clarity-ctl q active --json      # in flight: active and blocked
+clarity-ctl q current --json     # what `status` shows
+clarity-ctl q item 2 --json      # one item, with its lease and PLANS/ listing
 ```
 
 ```json
@@ -194,9 +197,9 @@ Every epoch has its own branch and worktree, so parallel work is isolated on dis
 show who is on what, an agent claims an epoch before working on it:
 
 ```sh
-clarity claim 7              # records who holds epoch 7, on which host, since when
-clarity note 7 "tried X"
-clarity release 7
+clarity-ctl claim 7              # records who holds epoch 7, on which host, since when
+clarity-ctl note 7 "tried X"
+clarity-ctl release 7
 ```
 
 A claim is a warning, not a lock. A second claim is refused unless it passes `--steal`,
@@ -216,7 +219,7 @@ a layout, with checkouts, caches, results and scripts all at the root, use `adop
 
 ```sh
 cd ~/research
-clarity adopt
+clarity-ctl adopt
 ```
 
 This sets up clarity and writes `.clarity/adopt.md`, a procedure for an agent to follow.
@@ -240,8 +243,8 @@ worklog only grows, so commit it whenever you want to keep or share a snapshot.
 When the code lives in checkouts under the root, list the ones you change:
 
 ```sh
-clarity repo add workspace/mini-swe-agent
-clarity repo list
+clarity-ctl repo add workspace/mini-swe-agent
+clarity-ctl repo list
 ```
 
 From then on `epoch start` creates the same branch in every listed repo, with a worktree
@@ -282,3 +285,7 @@ uv venv && uv pip install -e . pytest
 | `agents.py` | the instructions-file block |
 | `adopt.py` | the adoption procedure |
 | `lease.py` | claims |
+
+## License
+
+MIT — see [LICENSE](LICENSE).
