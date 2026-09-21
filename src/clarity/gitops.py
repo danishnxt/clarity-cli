@@ -139,3 +139,11 @@ def remove_worktree(root: Path, target: Path) -> None:
         _run(["worktree", "remove", "--force", str(target)], root)
     except ClarityError:
         pass  # already gone, or it was a symlink we made
+
+
+def delete_branch(root: Path, branch: str) -> None:
+    """Only for undoing a branch clarity created a moment ago, in a start that failed."""
+    try:
+        _run(["branch", "-D", branch], root)
+    except ClarityError:
+        pass

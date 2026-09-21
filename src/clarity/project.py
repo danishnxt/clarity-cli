@@ -289,6 +289,44 @@ class Project:
             else:
                 self.worklog.objectives.current = text
 
+    # ---------- the repos a workspace changes ----------
+
+    def _repo_rel(self, path: str) -> str:
+        target = Path(path).expanduser()
+        target = (target if target.is_absolute() else Path.cwd() / target).resolve()
+        root = self.root.resolve()
+        if target == root:
+            raise ClarityError(
+                "that's the project root — with no repos listed, epochs branch it already",
+                code=4)
+        if root not in target.parents:
+            raise ClarityError(f"{path} is outside this project", code=4)
+        return target.relative_to(root).as_posix()
+
+    def repo_add(self, path: str) -> list[str]:
+        rel = self._repo_rel(path)
+        if not gitops.is_repo(self.root / rel):
+            raise ClarityError(f"{rel} is not a git repo — no .git in it", code=4)
+        with self._write():
+            if rel in self.worklog.repos:
+                return list(self.worklog.repos)
+            name = Path(rel).name
+            clash = [r for r in self.worklog.repos if Path(r).name == name]
+            if clash:
+                raise ClarityError(
+                    f"{clash[0]} is also called {name} — each repo's worktree is "
+                    f"wt/<folder name>, so two can't share one", code=4)
+            self.worklog.repos.append(rel)
+        return list(self.worklog.repos)
+
+    def repo_remove(self, path: str) -> list[str]:
+        rel = self._repo_rel(path)
+        with self._write():
+            if rel not in self.worklog.repos:
+                raise ClarityError(f"{rel} is not in the list", code=4)
+            self.worklog.repos.remove(rel)
+        return list(self.worklog.repos)
+
     # ---------- items ----------
 
     def add(self, name: str, type_: str = "feature", description: str | None = None,
@@ -360,17 +398,68 @@ class Project:
             # refused lease leaves no half-started epoch and no worktree we may not use.
             if take_lease:
                 lease.claim(folder, label=item.name)
-            if gitops.is_repo(self.root):
-                item.branch, warnings = self._attach_worktree(item, folder, branch)
+            if item.repos is None and item.branch is None and self.worklog.repos:
+                # first time this epoch touches git: take the project's list as it is now
+                item.repos = list(self.worklog.repos)
+            targets = self._targets(item, folder)
+            if targets:
+                item.branch, warnings = self._attach_all(item, targets, branch)
             item.status = "active"
             item.started = item.started or today()
         return item, warnings
 
-    def _attach_worktree(self, item: Item, folder: Path,
-                         branch: str | None) -> tuple[str, list[str]]:
+    def _targets(self, item: Item, folder: Path) -> list[tuple[Path, Path]]:
+        """(repo, worktree path) for every repo this epoch branches.
+
+        An epoch with a repo list branches exactly those; one without is the old
+        single-repo case and branches the root, if the root is a repo at all.
+        """
+        if item.repos is not None:
+            return [(self.root / r, folder / "wt" / Path(r).name) for r in item.repos]
+        if gitops.is_repo(self.root):
+            return [(self.root, folder / "wt" / self.root.name)]
+        return []
+
+    def _attach_all(self, item: Item, targets: list[tuple[Path, Path]],
+                    branch: str | None) -> tuple[str, list[str]]:
+        """The same branch in every repo, or none of them.
+
+        A start that fails in the third repo would otherwise leave two worktrees and
+        two fresh branches behind with nothing recording them, so it undoes its own
+        work before the error goes up. _write() already keeps the worklog unchanged.
+        """
+        # item.branch before the slug: after a rename, a reopen must find the branch
+        # the epoch actually has, not one named after its new title
+        name = branch or item.branch or f"epoch/{item.id:03d}-{item.slug}"
         warnings: list[str] = []
-        name = branch or f"epoch/{item.id:03d}-{item.slug}"
-        link = folder / "wt" / self.root.name
+        made: list[tuple[Path, Path, bool]] = []
+        try:
+            for repo, link in targets:
+                if not gitops.is_repo(repo):
+                    raise ClarityError(
+                        f"{repo.relative_to(self.root) if repo != self.root else repo} "
+                        f"is not a git repo — nothing to branch", code=4)
+                result = self._attach_worktree(item, repo, link, name, branch)
+                if result is None:
+                    continue  # already attached
+                created, notes = result
+                made.append((repo, link, created))
+                warnings += notes
+        except Exception:
+            for repo, link, created in reversed(made):
+                if link.is_symlink():
+                    link.unlink()
+                else:
+                    gitops.remove_worktree(repo, link)
+                if created:
+                    gitops.delete_branch(repo, name)
+            raise
+        return name, warnings
+
+    def _attach_worktree(self, item: Item, repo: Path, link: Path, name: str,
+                         branch: str | None) -> tuple[bool, list[str]] | None:
+        """One repo. (created the branch?, warnings), or None if already attached."""
+        warnings: list[str] = []
         link.parent.mkdir(parents=True, exist_ok=True)
         if link.exists() or link.is_symlink():
             # Already attached. Moving it would mean tearing down a checkout someone may
@@ -383,12 +472,12 @@ class Project:
                     f"  close the epoch, or remove that worktree yourself, to move it",
                     code=4,
                 )
-            return item.branch or name, warnings
+            return None
 
-        exists = gitops.branch_exists(self.root, name)
+        exists = gitops.branch_exists(repo, name)
         if exists:
-            warnings += self._staleness(name)
-        checked_out = gitops.worktree_path_for(self.root, name) if exists else None
+            warnings += self._staleness(name, repo)
+        checked_out = gitops.worktree_path_for(repo, name) if exists else None
         if checked_out:
             # already checked out somewhere (often the main checkout) — point at it
             link.symlink_to(os.path.relpath(checked_out, link.parent))
@@ -403,14 +492,16 @@ class Project:
                 )
         else:
             # a worktree can be added from a dirty tree; git carries nothing across
-            gitops.add_worktree(self.root, link, name, create=not exists)
-        return name, warnings
+            gitops.add_worktree(repo, link, name, create=not exists)
+        return not exists, warnings
 
     def refresh(self, item_id: int | None = None) -> tuple[Item, str]:
-        """Bring the base branch into an in-flight epoch's branch.
+        """Bring the base branch into an in-flight epoch's branch, in every repo it has.
 
         Merges rather than recreating: the branch keeps its identity and its commits,
         so a refresh can never lose work. Deleting branches is a separate question.
+        Every repo is checked before any is merged, so a dirty third repo refuses the
+        whole refresh instead of leaving two caught up and one not.
         """
         item = self.worklog.by_id(self.resolve_id(item_id))
         if item.status not in IN_FLIGHT:
@@ -418,60 +509,72 @@ class Project:
                 f"epoch {item.id} is {item.status} — only an in-flight epoch refreshes",
                 code=4,
             )
-        if not gitops.is_repo(self.root):
+        folder = self.folder_of(item)
+        targets = self._targets(item, folder) if folder else []
+        if not targets or not item.branch:
             raise ClarityError("not a git repo — nothing to refresh from", code=4)
-        base = gitops.default_branch(self.root)
-        if not base:
-            raise ClarityError("no main or master branch to refresh from", code=4)
-        if not item.branch or item.branch == base:
-            raise ClarityError(f"epoch {item.id} is on {base} already", code=4)
 
-        worktree = gitops.worktree_path_for(self.root, item.branch)
-        if not worktree:
-            raise ClarityError(f"{item.branch} is not checked out anywhere", code=4)
-        if worktree == self.root:
-            # a shared checkout: merging here would move the tree under everyone else
-            raise ClarityError(
-                f"{item.branch} shares the main checkout — refresh it there yourself",
-                code=4,
-            )
-        dirty = gitops.is_dirty(worktree)
-        if dirty:
-            raise ClarityError(
-                f"{len(dirty)} uncommitted change(s) in {worktree} — commit or stash first",
-                code=4,
-            )
+        plan: list[tuple[Path, Path, str, int]] = []
+        bases: set[str] = set()
+        for repo, _ in targets:
+            where = "" if repo == self.root else f" in {repo.relative_to(self.root)}"
+            base = gitops.default_branch(repo)
+            if not base:
+                raise ClarityError(f"no main or master branch to refresh from{where}", code=4)
+            if item.branch == base:
+                raise ClarityError(f"epoch {item.id} is on {base} already{where}", code=4)
+            worktree = gitops.worktree_path_for(repo, item.branch)
+            if not worktree:
+                raise ClarityError(f"{item.branch} is not checked out anywhere{where}", code=4)
+            if worktree == repo:
+                # a shared checkout: merging here would move the tree under everyone else
+                raise ClarityError(
+                    f"{item.branch} shares the main checkout{where} — refresh it there yourself",
+                    code=4,
+                )
+            dirty = gitops.is_dirty(worktree)
+            if dirty:
+                raise ClarityError(
+                    f"{len(dirty)} uncommitted change(s) in {worktree} — commit or stash first",
+                    code=4,
+                )
+            bases.add(base)
+            _, behind = gitops.ahead_behind(repo, item.branch, base)
+            if behind:
+                plan.append((repo, worktree, base, behind))
 
-        _, behind = gitops.ahead_behind(self.root, item.branch, base)
-        if not behind:
-            return item, f"epoch {item.id} is already up to date with {base}"
+        if not plan:
+            return item, f"epoch {item.id} is already up to date with {' / '.join(sorted(bases))}"
         # Take the lease before moving anyone's tree. claim() already does the right
         # thing: free, stale or ours goes through, someone else's live one refuses.
-        folder = self.folder_of(item)
-        if folder:
-            lease.claim(folder, label=item.name)
-        gitops.merge_into(worktree, base)
-        return item, (f"epoch {item.id}: {item.branch} caught up with {base} "
-                      f"({behind} commit{'s' if behind != 1 else ''})")
+        lease.claim(folder, label=item.name)
+        done = []
+        for repo, worktree, base, behind in plan:
+            gitops.merge_into(worktree, base)
+            where = "" if repo == self.root else f" in {repo.relative_to(self.root)}"
+            done.append(f"{base}{where} ({behind} commit{'s' if behind != 1 else ''})")
+        return item, f"epoch {item.id}: {item.branch} caught up with " + ", ".join(done)
 
-    def _behind(self, branch: str) -> tuple[str, int, int] | None:
+    def _behind(self, branch: str, repo: Path | None = None) -> tuple[str, int, int] | None:
         """(base, ahead, behind) when `branch` trails its base, else None."""
-        base = gitops.default_branch(self.root)
+        repo = repo or self.root
+        base = gitops.default_branch(repo)
         if not base or base == branch:
             return None
         try:
-            ahead, behind = gitops.ahead_behind(self.root, branch, base)
+            ahead, behind = gitops.ahead_behind(repo, branch, base)
         except ClarityError:
             return None
         return (base, ahead, behind) if behind else None
 
-    def _staleness(self, branch: str) -> list[str]:
+    def _staleness(self, branch: str, repo: Path | None = None) -> list[str]:
         """Reopening gives you the branch as you left it — say so before work resumes."""
-        found = self._behind(branch)
+        found = self._behind(branch, repo)
         if not found:
             return []
         base, ahead, behind = found
-        note = f"{branch} is {behind} commit{'s' if behind != 1 else ''} behind {base}"
+        where = "" if not repo or repo == self.root else f" in {repo.relative_to(self.root)}"
+        note = f"{branch}{where} is {behind} commit{'s' if behind != 1 else ''} behind {base}"
         if ahead:
             note += f" and {ahead} ahead"
         return [note]
@@ -482,16 +585,20 @@ class Project:
         The start-time warning fires once, when the worktree is created; main moves on
         afterwards and nothing said so. This is what keeps saying it.
         """
-        if not gitops.is_repo(self.root):
-            return {}
         out: dict[int, str] = {}
         for item in self.worklog.items:
             if item.status not in IN_FLIGHT or not item.branch:
                 continue
-            found = self._behind(item.branch)
-            if found:
-                base, _, behind = found
-                out[item.id] = f"{behind} behind {base}"
+            folder = self.folder_of(item)
+            parts = []
+            for repo, _ in (self._targets(item, folder) if folder else []):
+                found = self._behind(item.branch, repo)
+                if found:
+                    base, _, behind = found
+                    where = "" if repo == self.root else f" ({repo.name})"
+                    parts.append(f"{behind} behind {base}{where}")
+            if parts:
+                out[item.id] = ", ".join(parts)
         return out
 
     def note(self, item_id: int | None, text: str) -> Item:
@@ -540,13 +647,19 @@ class Project:
                 raise ClarityError(f"item {item.id} is already {item.status}", code=4)
             folder = self.folder_of(item)
             if folder:
-                worktree = folder / "wt" / self.root.name
-                if worktree.is_symlink():
-                    worktree.unlink()  # we only borrowed the path
-                elif worktree.exists():
-                    gitops.remove_worktree(self.root, worktree)  # branch survives
+                for repo, worktree in self._targets(item, folder):
+                    if worktree.is_symlink():
+                        worktree.unlink()  # we only borrowed the path
+                    elif worktree.exists():
+                        gitops.remove_worktree(repo, worktree)  # branch survives
                 lease.release(folder, force=True)
-            if item.branch:
+            if item.branch and item.repos is not None:
+                previous = item.extra.get("end_shas") or {}
+                item.extra["end_shas"] = {
+                    r: gitops.branch_sha(self.root / r, item.branch) or previous.get(r)
+                    for r in item.repos
+                }
+            elif item.branch:
                 # the epoch's own branch, not whatever the main checkout has checked
                 # out — the work being closed lives on the former
                 item.extra["end_sha"] = (gitops.branch_sha(self.root, item.branch)
@@ -601,5 +714,6 @@ class Project:
     def status_text(self, show_all: bool = False) -> str:
         return render.status_text(
             self.worklog.objectives, self.worklog.items, show_all, self.leases(),
-            is_repo=gitops.is_repo(self.root), stale=self.stale_map(),
+            is_repo=gitops.is_repo(self.root) or bool(self.worklog.repos),
+            stale=self.stale_map(),
         )

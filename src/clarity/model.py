@@ -52,6 +52,10 @@ class Item:
     outcome: str | None = None
     folder: str | None = None
     branch: str | None = None
+    # The repos this epoch branched, relative to the root — copied from the project's
+    # list at first start, so close and refresh act on what was actually branched
+    # even if that list changes later. None means the root repo, as before.
+    repos: list[str] | None = None
     blocked_reason: str | None = None
     evidence: str | None = None  # where adopt found it
     notes: list[Note] = field(default_factory=list)
@@ -65,7 +69,7 @@ class Item:
     extra: dict = field(default_factory=dict)  # preserves hand-added keys
 
     KNOWN = (
-        "id name type status description outcome folder branch blocked_reason "
+        "id name type status description outcome folder branch repos blocked_reason "
         "evidence notes created started ended closed_seq"
     ).split()
 

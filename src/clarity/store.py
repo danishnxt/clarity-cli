@@ -101,11 +101,19 @@ def load_yaml(path: Path) -> dict:
 
 
 class Worklog:
-    """objectives + every item, idea through closed."""
+    """objectives + the repos the project changes + every item, idea through closed.
 
-    def __init__(self, path: Path, objectives: Objectives, items: list[Item], extra: dict):
+    `repos` is empty for a project that is itself one repo — epochs branch the root.
+    A workspace holding several checkouts lists the ones its epochs branch instead.
+    """
+
+    OWN = ("version", "objectives", "repos", "items")
+
+    def __init__(self, path: Path, objectives: Objectives, items: list[Item], extra: dict,
+                 repos: list[str] | None = None):
         self.path = path
         self.objectives = objectives
+        self.repos = repos or []
         self.items = items
         self.extra = extra
 
@@ -113,19 +121,20 @@ class Worklog:
     def load(cls, path: Path) -> "Worklog":
         raw = load_yaml(path)
         items = [Item.from_dict(d) for d in (raw.get("items") or [])]
-        extra = {k: v for k, v in raw.items() if k not in ("version", "objectives", "items")}
-        return cls(path, Objectives.from_dict(raw.get("objectives")), items, extra)
+        extra = {k: v for k, v in raw.items() if k not in cls.OWN}
+        return cls(path, Objectives.from_dict(raw.get("objectives")), items, extra,
+                   repos=list(raw.get("repos") or []))
 
     @classmethod
     def empty(cls, path: Path) -> "Worklog":
         return cls(path, Objectives(), [], {})
 
     def save(self) -> None:
-        data = {
-            "version": 1,
-            "objectives": self.objectives.to_dict(),
-            "items": [i.to_dict() for i in self.items],
-        }
+        data = {"version": 1, "objectives": self.objectives.to_dict()}
+        if self.repos:
+            # absent rather than `repos: []`, so a single-repo worklog reads as it did
+            data["repos"] = list(self.repos)
+        data["items"] = [i.to_dict() for i in self.items]
         data.update(self.extra)
         write_atomic(self.path, _dump(data))
 

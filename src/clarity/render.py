@@ -185,6 +185,8 @@ def epoch_md(item: Item, existing: str | None = None) -> str:
     ]
     if item.branch:
         lines.append(f"- **branch** {item.branch}")
+    if item.repos:
+        lines.append(f"- **repos** {', '.join(item.repos)}")
     if item.description:
         lines.append(f"- **goal** {item.description}")
     if item.blocked_reason:

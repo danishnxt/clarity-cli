@@ -221,6 +221,26 @@ def build_parser() -> argparse.ArgumentParser:
                            help="set the overall objective instead of the current one")
     _leaf(obj, "show", "print both objectives", into=obj_rows)
 
+    # ---- repos ----
+    repo_rows: list = []
+    p_repo = _leaf(sub, "repo", "the repos epochs branch, in a workspace of several",
+                   section=setup)
+    repo = p_repo.add_subparsers(dest="action", required=True, metavar="<action>")
+    p_repo_add = _leaf(repo, "add", "branch this repo in every epoch from now on",
+                       description="For a project whose root holds several checkouts. Once "
+                       "any repo is listed, `epoch start` gives each listed repo the "
+                       "epoch's branch and a worktree at wt/<folder name>, and leaves the "
+                       "root alone. With none listed, epochs branch the root, as in a "
+                       "single-repo project.\n\n"
+                       "List the repos you change. Ones you only use — a tool, a "
+                       "dependency — stay off it and live in 3rd_party/.", into=repo_rows)
+    p_repo_add.add_argument("path", metavar="<path>", help="the repo, e.g. workspace/mini-swe-agent")
+    p_repo_rm = _leaf(repo, "remove", "stop branching this repo in new epochs",
+                      description="Epochs already started keep the repos they were "
+                      "started with, so closing them still cleans up.", into=repo_rows)
+    p_repo_rm.add_argument("path", metavar="<path>", help="the repo, as listed")
+    _leaf(repo, "list", "show the repos epochs branch", into=repo_rows)
+
     # ---- ideas ----
     idea_rows: list = []
     p_idea = _leaf(sub, "idea", "things you might do later — no folder, no branch",
@@ -338,7 +358,7 @@ def build_parser() -> argparse.ArgumentParser:
                            help="release a lease held by someone else")
 
     ACTIONS.clear()
-    ACTIONS.update(objective=obj_rows, idea=idea_rows, epoch=epoch_rows)
+    ACTIONS.update(objective=obj_rows, repo=repo_rows, idea=idea_rows, epoch=epoch_rows)
 
     return parser
 
@@ -470,6 +490,17 @@ def run(args) -> int:
             emit(args, "objective.show", data,
                  f"OBJECTIVE  {data['overall'] or '— not set —'}\n"
                  f"NOW        {data['current'] or '— not set —'}")
+
+    elif args.command == "repo":
+        if action == "add":
+            repos = project.repo_add(args.path)
+        elif action == "remove":
+            repos = project.repo_remove(args.path)
+        else:
+            repos = list(project.worklog.repos)
+        text = ("\n".join(f"  {r}" for r in repos) if repos
+                else "no repos listed — epochs branch the project root")
+        emit(args, f"repo.{action}", {"repos": repos}, text)
 
     elif args.command == "idea":
         if action == "add":
