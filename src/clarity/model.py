@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 
 STATUSES = ["idea", "planned", "active", "blocked", "done", "abandoned"]
 TYPES = ["feature", "fix", "improvement", "experiment", "chore"]
@@ -22,8 +22,20 @@ NEEDS_FOLDER = {"planned", "active", "blocked", "done", "abandoned"}
 def today() -> str:
     return date.today().isoformat()
 
+
+def now() -> str:
+    """Timestamp for a note. Dates are enough for created/started/ended — those are
+    milestones — but a note's whole job is to say how current the record is, and
+    "today" cannot tell a session that started an hour ago from one that ran all day.
+    Seconds are dropped: this is read by a human, not diffed.
+    """
+    return datetime.now().replace(second=0, microsecond=0).isoformat(" ")
+
 @dataclass
 class Note:
+    """`at` is an ISO datetime for notes written since timestamps landed, and a bare
+    date for older ones. Both parse; readers must cope with either."""
+
     at: str
     text: str
 

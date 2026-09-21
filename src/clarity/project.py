@@ -6,7 +6,7 @@ import os
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import agents, gitops, lease, render
+from . import adopt, agents, gitops, lease, render
 from .model import (
     CLOSED,
     DEFAULT_CONFIG,
@@ -16,6 +16,7 @@ from .model import (
     TYPES,
     Item,
     Note,
+    now as model_now,
     today,
 )
 from .store import (
@@ -105,6 +106,17 @@ class Project:
         project.render_views()
         project.ensure_gitignore()
         return project
+
+    @staticmethod
+    def adopt(root: Path) -> tuple["Project", Path]:
+        """init, plus the procedure for accounting for work that predates it.
+
+        Refuses an existing clarity project for the same reason `init` does: the
+        worklog already describes this repo, and a second pass over it would
+        propose items for work that is already tracked.
+        """
+        project = Project.init(root)
+        return project, adopt.write_doc(project.root)
 
     # ---------- paths ----------
 
@@ -517,7 +529,7 @@ class Project:
     def note(self, item_id: int | None, text: str) -> Item:
         with self._write():
             item = self.worklog.by_id(self.resolve_id(item_id))
-            item.notes.append(Note(at=today(), text=text))
+            item.notes.append(Note(at=model_now(), text=text))
         return item
 
     def block(self, item_id: int | None, reason: str) -> Item:

@@ -34,6 +34,19 @@ chose to read. So it carries the rules that are expensive to get wrong and the
 loop you actually run, and nothing else. Adding to it costs every turn of every
 session.
 
+That is why adopt gets one conditional line rather than its procedure. The
+procedure is long and is read once; it lives in .clarity/adopt.md, which the
+adopting agent deletes when it is done. After that the line costs a glance at a
+path that isn't there.
+
+## Why the note rule names a moment, not a cadence
+
+It used to say "as you go, not at the end". That describes a rhythm, and an
+agent in a long session waits for a natural pause to obey it — which never
+arrives, because the work keeps moving. The rule now names the trigger instead:
+a decision changed. That is a thing an agent can notice happening, and it is
+also exactly the content the next session cannot reconstruct from the code.
+
 ## Why the wording is conditional
 
 A global install writes this into ~/.claude/CLAUDE.md, which loads in every
@@ -52,7 +65,9 @@ from .store import write_atomic
 START = "<!-- CLARITY:START -->"
 END = "<!-- CLARITY:END -->"
 
-_BODY = """- `clarity status` — objective, what's in flight, what's next.
+_BODY = """- If `.clarity/adopt.md` exists, adoption is unfinished: read it first and do
+  what it says. It ends by telling you to delete it.
+- `clarity status` — objective, what's in flight, what's next.
   `clarity --help` — every command.
 - `clarity q active --json`, `clarity q item <id> --json` — for you. Every read
   takes `--json` and answers `{ok, command, data, warnings, version}`.
@@ -63,8 +78,10 @@ _BODY = """- `clarity status` — objective, what's in flight, what's next.
   Then work in that epoch's folder: `clarity path`.
 - Claim before you work: `clarity claim <id>`, `clarity release <id>` when done.
   Pass the id every time — `clarity env` lasts only for the shell it ran in.
-- Record what you tried as you go, not at the end: `clarity note "..."`. Those
-  notes are what the next session reads."""
+- Write a note the moment a decision changes — a reversal, an approach you
+  rejected, a result that surprised you: `clarity note <id> "..."`. Not when
+  work completes; in a long session it never does, and the record is what the
+  next session has instead of this conversation."""
 
 # Written into a file inside the project. It sits next to the worklog, so it can
 # say so plainly — hedging here would only teach an agent to doubt the repo it is

@@ -13,6 +13,7 @@ from __future__ import annotations
 import shutil
 import sys
 import textwrap
+from datetime import datetime
 
 from .model import CLOSED, FUTURE, IN_FLIGHT, Item, Objectives
 
@@ -58,6 +59,34 @@ def _wrap(text: str, first: str, rest: str, cols: int) -> list[str]:
                          break_long_words=False, break_on_hyphens=False) or [first.rstrip()]
 
 
+
+def note_age(item: Item) -> str | None:
+    """How long the record has been standing still, for an epoch in flight.
+
+    This exists because of a real failure: a session reversed the scope of its own
+    epoch, tested it, had the result reviewed and rewrote it three times without
+    writing one note, because every turn felt mid-task and a note was never the
+    thing just asked for. Nothing in the view said so. Now it does — `status` is
+    what an agent reads first, so it is where the nag belongs.
+    """
+    if item.status not in IN_FLIGHT or not item.notes:
+        return None
+    latest = max(n.at for n in item.notes)
+    try:
+        when = datetime.fromisoformat(latest)
+    except ValueError:
+        return None
+    # A pre-timestamp note is a bare date, which parses as midnight — so its age
+    # is coarse rather than absent. Better a day-granular nag on an old worklog
+    # than silence on exactly the projects most likely to have gone quiet.
+    minutes = int((datetime.now() - when).total_seconds() // 60)
+    if minutes < 90:
+        return None          # still warm; saying anything here is just noise
+    if minutes < 60 * 24:
+        return f"last note {minutes // 60}h ago"
+    return f"last note {minutes // 1440}d ago"
+
+
 def _line(item: Item, leases: dict | None = None, cols: int | None = None,
           stale: dict | None = None) -> str:
     """Name first, detail on its own indented line — never a separator left dangling."""
@@ -83,6 +112,11 @@ def _line(item: Item, leases: dict | None = None, cols: int | None = None,
         detail += f"   [held by {who}{', ' + since if since else ''}]"
     if detail:
         lines += _wrap(detail, gutter, gutter, cols)
+    quiet = note_age(item)
+    if quiet:
+        # its own line for the same reason the refresh warning gets one: it is about
+        # the record, not about where the work lives
+        lines += _wrap(f"⚠ {quiet} — clarity note {item.id} \"...\"", gutter, gutter, cols)
     trails = (stale or {}).get(item.id)
     if trails:
         # its own line, not tacked onto the folder path: main moving under an epoch is
@@ -161,7 +195,7 @@ def epoch_md(item: Item, existing: str | None = None) -> str:
 
     if item.notes:
         lines += ["", "## Tried"]
-        lines += [f"- `{n.at}` {n.text}" for n in item.notes]
+        lines += [f"- `{n.at.split()[0]}` {n.text}" for n in item.notes]
     lines += ["", EPOCH_MARK_END, ""]
     generated = "\n".join(lines)
 

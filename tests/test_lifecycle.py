@@ -284,3 +284,76 @@ def test_a_non_conflict_git_failure_is_not_called_a_conflict(tmp_path):
         assert "conflicts" not in str(exc), f"git's own error was relabelled: {exc}"
     else:
         raise AssertionError("merging a missing ref should fail")
+
+
+# A session once reversed its epoch's scope, tested it and had it reviewed without
+# writing a note, because every turn felt mid-task. `status` said nothing. These
+# keep the signal that now says so.
+
+
+def test_a_note_records_the_time_not_just_the_day(tmp_path):
+    """"Today" cannot tell an hour-old session from one that ran all day."""
+    from datetime import datetime
+
+    root = make_repo(tmp_path)
+    project = Project.init(root)
+    item = project.add("a thing", status="planned")
+    project.note(item.id, "tried the obvious thing")
+
+    at = Project.find(root).worklog.by_id(item.id).notes[0].at
+    datetime.fromisoformat(at)          # parses as a datetime, not just a date
+    assert " " in at, f"{at!r} carries no time of day"
+
+
+def test_a_fresh_note_is_not_nagged_about(tmp_path):
+    from clarity import render
+
+    root = make_repo(tmp_path)
+    project = Project.init(root)
+    item = project.add("a thing", status="active")
+    project.note(item.id, "just now")
+
+    assert render.note_age(project.worklog.by_id(item.id)) is None
+
+
+def test_a_stale_note_on_an_epoch_in_flight_is_surfaced(tmp_path):
+    from clarity import render
+    from clarity.model import Note
+
+    root = make_repo(tmp_path)
+    project = Project.init(root)
+    item = project.add("a thing", status="active")
+    item.notes.append(Note(at="2020-01-01 09:00", text="ancient"))
+
+    assert "last note" in (render.note_age(item) or "")
+    assert f"clarity note {item.id}" in render.status_text(
+        project.worklog.objectives, [item])
+
+
+def test_only_work_in_flight_is_nagged(tmp_path):
+    """An idea nobody has started has nothing to report."""
+    from clarity import render
+    from clarity.model import Note
+
+    root = make_repo(tmp_path)
+    project = Project.init(root)
+    item = project.add("someday")
+    item.notes.append(Note(at="2020-01-01 09:00", text="ancient"))
+
+    assert render.note_age(item) is None
+
+
+def test_a_date_only_note_still_counts(tmp_path):
+    """Worklogs written before timestamps existed keep working, at day granularity:
+    a bare date parses as midnight, so the age is coarse but never wrong by a day."""
+    from clarity import render
+    from clarity.model import Note
+
+    root = make_repo(tmp_path)
+    project = Project.init(root)
+    item = project.add("a thing", status="active")
+    item.notes.append(Note(at="2020-01-01", text="written before timestamps"))
+
+    assert "last note" in (render.note_age(item) or "")
+    render.status_text(project.worklog.objectives, [item])
+    assert "`2020-01-01`" in render.epoch_md(item, None)

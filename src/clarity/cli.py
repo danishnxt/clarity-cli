@@ -164,6 +164,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_init.add_argument("--objective", help="the overall objective — what this project is for")
     p_init.add_argument("--now", help="the current objective — what you're doing this week")
 
+    _leaf(sub, "adopt", "set up in a folder that already has files in it",
+          "Does what init does, then writes .clarity/adopt.md — the procedure for "
+          "tidying the layout: everything that is not clarity's moves under src/, "
+          "leaving the root for .clarity/, EPOCHS/, LEARNINGS/, worklog.yaml and the "
+          "agent instructions files.\n\n"
+          "The moves are proposed as a table and wait for your yes, because moving a "
+          "build tree or a virtualenv costs a rebuild. Nothing is added to the "
+          "worklog: adoption tidies the folder, and the work in it stays yours to "
+          "write down. Point an agent at that file; it deletes it when done, and its "
+          "absence is what 'adoption finished' means.",
+          section=setup)
+
     p_install = _leaf(sub, "install", "tell your agents this project uses clarity",
                       "Writes a short marker-fenced block into AGENTS.md, and points "
                       "CLAUDE.md at it with a one-line import rather than a second copy. "
@@ -231,6 +243,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_idea_add.add_argument("text", metavar="<text>", help="what the work is, in one line")
     p_idea_add.add_argument("--type", default="feature", choices=TYPES,
                             help="kind of work (default: feature)")
+    p_idea_add.add_argument("--evidence",
+                            help="where this came from, for an item you did not think "
+                                 "up yourself — a branch, a file and line, a PR")
 
     _leaf(idea, "list", "show ideas and anything planned but not started", into=idea_rows)
 
@@ -255,6 +270,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_new.add_argument("text", metavar="<text>", help="what the work is, in one line")
     p_new.add_argument("--type", default="feature", choices=TYPES,
                        help="kind of work (default: feature)")
+    p_new.add_argument("--evidence",
+                       help="where this came from, for an item you did not think "
+                            "up yourself — a branch, a file and line, a PR")
 
     p_start = _leaf(epoch, "start", "begin work: branch, worktree and lease", into=epoch_rows,
                     description=
@@ -359,6 +377,21 @@ def _first_run(project) -> str:
     )
 
 
+def _adopt_text(project, doc: Path) -> str:
+    rel = doc.relative_to(project.root)
+    return (
+        f"clarity initialised in {project.root}\n"
+        f"this folder has files in it that predate clarity, and the root is now "
+        f"clarity's\n\n"
+        f"wrote {rel}: the procedure for tidying that up — everything that is not\n"
+        f"clarity's moves under src/, proposed as a table before anything is touched.\n"
+        f"It is written for an agent. Point one at it:\n\n"
+        f'  "read {rel} and follow it"\n\n'
+        f"It adds nothing to the worklog. What you are working on stays yours to\n"
+        f"write down afterwards, a line at a time.\n"
+    )
+
+
 def _install_data(done, scope: str) -> dict:
     return {"scope": scope,
             "files": [{"path": str(path), "action": action} for path, action in done]}
@@ -393,6 +426,13 @@ def run(args) -> int:
         project = Project.init(Path.cwd(), name=args.name, overall=args.objective,
                                current=args.now)
         emit(args, "init", {"root": str(project.root)}, _first_run(project))
+        return 0
+
+    if args.command == "adopt":
+        project, doc = Project.adopt(Path.cwd())
+        emit(args, "adopt",
+             {"root": str(project.root), "doc": str(doc.relative_to(project.root))},
+             _adopt_text(project, doc))
         return 0
 
     # A global install is about the user's own agent files, not about any one
@@ -439,7 +479,7 @@ def run(args) -> int:
 
     elif args.command == "idea":
         if action == "add":
-            item = project.add(args.text, type_=args.type)
+            item = project.add(args.text, type_=args.type, evidence=args.evidence)
             emit(args, "idea.add", item.to_dict(),
                  f"idea {item.id}: {item.name}\n"
                  f"  start it with: clarity epoch start {item.id}")
@@ -456,7 +496,8 @@ def run(args) -> int:
 
     elif args.command == "epoch":
         if action == "new":
-            item = project.add(args.text, type_=args.type, status="planned")
+            item = project.add(args.text, type_=args.type, status="planned",
+                               evidence=args.evidence)
             emit(args, "epoch.new", item.to_dict(),
                  f"epoch {item.id} — {item.folder}\n"
                  f"  begin work with: clarity epoch start {item.id}")

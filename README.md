@@ -35,6 +35,30 @@ clarity status --all
 clarity q active --json             # what an agent calls
 ```
 
+## Starting from a project that already has work in it
+
+`init` assumes an empty or tidy folder. A workspace that grew before anyone thought
+about layout — checkouts, caches, results and scripts all at the root — needs that root
+tidied first, and deciding what is safe to move takes judgement, so it is not in the CLI.
+
+```sh
+cd ~/some_project
+clarity adopt
+```
+
+That sets the project up and writes `.clarity/adopt.md`: the procedure for tidying
+the layout, so everything that is not clarity's moves under `src/` and the root is left
+holding clarity's own files. The moves are proposed as a table and wait for your
+approval — moving a directory can break it, and only you know which ones you still
+need. Point an agent at it — the clarity block in `AGENTS.md` already tells every
+agent to read that file first when it exists.
+
+Adopt deliberately does *not* inventory the work. The worklog comes out empty; you add
+what you're working on afterwards, a line each.
+
+The last step tells the agent to delete it. Its absence is what "adoption finished"
+means; there is no flag to set and no second copy to go stale.
+
 ## What `init` creates
 
 ```
@@ -56,7 +80,7 @@ your_project/
 ## Lifecycle
 
 ```
-idea ──promote──► planned ──start──► active ──close──► done ──► archived
+idea ──promote──► planned ──start──► active ──close──► done
                                       │  ▲       ▲       │
                                   block  unblock └─reopen─┘
 ```
@@ -170,8 +194,7 @@ p.close(ep.id, outcome="2x slower, dropped")
 
 ## Not built yet
 
-`adopt` (scan → agent-written plan → apply), `doctor`, `view` (read-only pane), hooks,
-and everything about logs.
+`doctor`, `view` (read-only pane), hooks, and everything about logs.
 
 ## Where the record lives
 
