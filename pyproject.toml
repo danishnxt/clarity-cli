@@ -17,8 +17,9 @@ classifiers = [
     "Topic :: Software Development :: Version Control :: Git",
 ]
 
-# [project.urls]
-# Homepage = "https://github.com/<you>/clarity-ctl"
+[project.urls]
+Homepage = "https://github.com/danishnxt/clarity-cli"
+Issues = "https://github.com/danishnxt/clarity-cli/issues"
 
 [project.scripts]
 clarity-ctl = "clarity.cli:main"
@@ -30,7 +31,5 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/clarity"]
 
-# The repo also holds clarity's own worklog and EPOCHS/ — this project uses the
-# tool on itself. None of that belongs in a published source archive.
 [tool.hatch.build.targets.sdist]
 include = ["src/clarity", "tests", "README.md", "LICENSE", "pyproject.toml"]
