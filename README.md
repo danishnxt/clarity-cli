@@ -2,13 +2,26 @@
 
 **Project state you can read in one command, and your coding agent can query without crawling the tree.**
 
-clarity keeps track of a project's work in one file, `worklog.yaml`: what the project is
+Often a coding agent can overtake your own thoughts/plans in a project and runaway with their own reasoning. This can leave: 
+
+1. Gaps in your understanding
+2. Unreadably long logs that confuse.
+3. Good/bad experiment results that cannot be tied back to a cause. 
+4. etc
+
+For small toy projects this can be fine, but for larger enterprise work where you need a complete handle on state, this is problematic. 
+
+Clarity-ctl is a small cli tool and framework along with a few simple skills/rules which can help you stay in the loop with the agent better and prevent it from running away with its own reasining, leaving your flourdering trying to catch up parsing extremly long logs, organize your work better, and make it easier to work generally.
+
+All of this is doable with good prompting but clarity-cli provides tools and rules that can make it essentially automatic. 
+
+The model is each work cycle is an 'EPOCH' and we want to keep logs, learnings, relevant worktrees (and its branches) together so both agents and users can peruse easily. I find it very hard to parse a repo after claude/codex plough through.
+
+Clarity keeps track of a project's work in one file, `worklog.yaml`: what the project is
 for, the ideas waiting, the work in flight, and what was tried along the way. A small CLI
 is the only thing that writes to it. It prints the state for you and serves it as JSON to
 an agent. Nothing in it needs a model.
 
-Your code lives in its own repos, beside clarity's files rather than mixed in with them,
-so pushing your code never pushes the worklog.
 
 ## Install
 
