@@ -8,6 +8,8 @@ with its own reasoning. That leaves you with:
 1. Gaps in your understanding.
 2. Logs too long to read, that confuse more than they explain.
 3. Experiment results, good and bad, that can't be tied back to a cause.
+4. Tokens burned on catching up. Every session starts with you re-explaining where
+   things stand, and the agent re-reading the tree to find out for itself.
 
 For a small toy project that can be fine. For larger work, where you need a complete
 handle on the state of things, it's a real problem.
