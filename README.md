@@ -2,26 +2,32 @@
 
 **Project state you can read in one command, and your coding agent can query without crawling the tree.**
 
-Often a coding agent can overtake your own thoughts/plans in a project and runaway with their own reasoning. This can leave: 
+A coding agent can easily overtake your own thoughts and plans in a project and run away
+with its own reasoning. That leaves you with:
 
-1. Gaps in your understanding
-2. Unreadably long logs that confuse.
-3. Good/bad experiment results that cannot be tied back to a cause. 
-4. etc
+1. Gaps in your understanding.
+2. Logs too long to read, that confuse more than they explain.
+3. Experiment results, good and bad, that can't be tied back to a cause.
 
-For small toy projects this can be fine, but for larger enterprise work where you need a complete handle on state, this is problematic. 
+For a small toy project that can be fine. For larger work, where you need a complete
+handle on the state of things, it's a real problem.
 
-Clarity-ctl is a small cli tool and framework along with a few simple skills/rules which can help you stay in the loop with the agent better and prevent it from running away with its own reasining, leaving your flourdering trying to catch up parsing extremly long logs, organize your work better, and make it easier to work generally.
+clarity-ctl is a small CLI and a few simple rules for your agent. They keep you in the
+loop with the agent instead of floundering behind it, trying to catch up by reading
+extremely long logs. They also keep your work organized, which makes everything else
+easier.
 
-All of this is doable with good prompting but clarity-cli provides tools and rules that can make it essentially automatic. 
+All of this is doable with good prompting, but clarity-ctl makes it close to automatic.
 
-The model is each work cycle is an 'EPOCH' and we want to keep logs, learnings, relevant worktrees (and its branches) together so both agents and users can peruse easily. I find it very hard to parse a repo after claude/codex plough through.
+The model: each cycle of work is an **epoch**, and an epoch keeps its logs, its
+learnings, and its worktrees and branches together, so both you and your agent can
+look through them easily. I find it very hard to make sense of a repo after Claude or
+Codex has ploughed through it. This is the fix.
 
 Clarity keeps track of a project's work in one file, `worklog.yaml`: what the project is
 for, the ideas waiting, the work in flight, and what was tried along the way. A small CLI
 is the only thing that writes to it. It prints the state for you and serves it as JSON to
 an agent. Nothing in it needs a model.
-
 
 ## Install
 
@@ -33,8 +39,10 @@ uv tool install clarity-ctl         # or: pipx install clarity-ctl
 
 ## Quick start
 
-A project is a folder. clarity's files sit at the top, and your code goes in
-`workspace/`, one repo per folder:
+The first thing clarity does is keep its own files out of your code. An agent's
+scratch work, plans and notes belong to the project, not to your repo's history, so
+your code lives in its own repo under `workspace/`, next to clarity's files and never
+mixed in with them. Pushing your code never pushes the worklog.
 
 ```sh
 mkdir parser && cd parser
@@ -57,7 +65,9 @@ clarity-ctl note 2 "ring buffer 2x slower than the deque on small inputs — kee
 clarity-ctl epoch close 2 --outcome "kept the deque; ring buffer only above 64KB"
 ```
 
-`clarity-ctl status` shows where things stand:
+`clarity-ctl status` is the one command that tells you where things stand. It's the
+same answer you get after a coffee break or a week away, and the same one your agent
+gets:
 
 ```
 OBJECTIVE  Make the parser fast enough for 1GB inputs
@@ -76,9 +86,16 @@ Up next (1)
 
 ## Ideas and epochs
 
+Left alone, an agent will start the next thing before the last one is finished, and a
+week later nobody knows which change came from which attempt. Ideas and epochs are how
+you keep that apart.
+
 An **idea** is one line in the worklog. It has no folder and no branch, so writing one
-down costs nothing. An **epoch** is an idea you've started: one feature, fix or
-experiment, with a folder of its own and a branch in each of your repos.
+down costs nothing. It's somewhere to put "we should also…" without derailing the work
+in front of you.
+
+An **epoch** is an idea you've started: one feature, fix or experiment. It gets a folder
+of its own and a branch in each of your repos, so everything it touches stays with it.
 
 ```
 idea ──start──► active ──close──► done
@@ -88,24 +105,42 @@ idea ──start──► active ──close──► done
 
 - `epoch start` creates the branch `epoch/NNN-slug` in every listed repo and checks it
   out as a worktree inside the epoch's folder.
-- `note` records what you tried and why a decision changed, where the next person or
-  agent will find it.
 - `epoch block` parks an epoch with the reason it's waiting. `unblock` picks it back up.
 - `epoch refresh` merges `main` into the epoch's branch. It refuses if there is
   uncommitted work.
-- `epoch close` removes the worktree and keeps the branch. `--abandon` records the epoch
-  as dropped. `epoch reopen` brings it back, and keeps the old outcome as a note.
+- `epoch close` asks for the outcome in one line, removes the worktree and keeps the
+  branch. `--abandon` records the epoch as dropped. `epoch reopen` brings it back, and
+  keeps the old outcome as a note.
+
+## Notes: the why, not the log
+
+What you lose when an agent runs ahead is rarely *what* it did. The diff shows that. What
+you lose is *why*: the approach it tried first and dropped, the number that surprised it,
+the reason it changed direction. That's what turns a result into something you can trust
+or explain.
+
+```sh
+clarity-ctl note 2 "ring buffer 2x slower on small inputs — keeping the deque below 64KB"
+```
+
+A note is one line, timestamped, attached to its epoch. The rules clarity gives your
+agent tell it to write one the moment a decision changes, not at the end. In a long
+session the end never comes, and the notes are what the next session has instead of the
+conversation.
 
 ## What's on disk
+
+You should be able to open the folder and see what happened, without asking anyone,
+including the agent. Everything about an epoch lives in its folder:
 
 ```
 parser/
 ├── worklog.yaml            the source of truth
 ├── .clarity/config.yaml    project settings
-├── AGENTS.md, CLAUDE.md    tell agents to use clarity
+├── AGENTS.md, CLAUDE.md    the rules for your agent
 ├── EPOCHS/
 │   └── 002_2026-09-21__try-a-ring-buffer-for-the-tokenizer/
-│       ├── EPOCH.md        generated summary and notes; yours below the marker
+│       ├── EPOCH.md        summary and notes, generated; yours below the marker
 │       ├── PLANS/          long-form docs for this piece of work
 │       ├── LOGS/ ANALYSIS/ VIZ/
 │       └── wt/parser/      the epoch's worktree of workspace/parser
@@ -119,17 +154,22 @@ when you want a snapshot.
 
 ## Working with agents
 
-`init` writes a short block into `AGENTS.md`, and `CLAUDE.md` imports it. The block
-tells any agent to query clarity instead of crawling the tree, to claim an epoch before
-working on it, and to write a note when a decision changes. Anything else in those files
-is left alone.
+An agent opening a project usually spends its first minutes, and a pile of tokens,
+re-reading the tree to work out what's going on, and often gets it wrong. Clarity gives
+it the answer instead.
+
+`init` writes a short block of rules into `AGENTS.md`, and `CLAUDE.md` imports it. The
+rules tell the agent to ask clarity for the state rather than crawl for it, to claim an
+epoch before working on it, and to write a note when a decision changes. Anything else
+in those files is left alone.
 
 ```sh
 clarity-ctl install --global   # your own agents: ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md, ...
 clarity-ctl install --remove   # take the block back out
 ```
 
-The global block does nothing in folders without a `worklog.yaml`, so it's safe everywhere.
+The global block does nothing in folders without a `worklog.yaml`, so it's safe to
+install everywhere.
 
 Every read takes `--json` and answers with the same envelope:
 
@@ -146,14 +186,15 @@ clarity-ctl q item 2 --json      # one item, with its notes, claim and PLANS/ li
 Exit codes: `0` ok · `1` error · `2` validation failed · `3` not a clarity project ·
 `4` refused. The envelope and exit codes are stable; the human-readable output may change.
 
-**Commands always take the epoch id.** clarity never guesses it from your current
-folder or from there being only one epoch in flight. A guess like that works until a
+**Commands always take the epoch id.** Clarity never guesses it from your current
+folder, or from there being only one epoch in flight. A guess like that works until a
 second epoch starts, and then the same command quietly means something else.
 
 ### Several agents at once
 
-Each epoch has its own branch and worktree, so parallel work never shares files. To show
-who is on what, an agent claims an epoch first:
+Once you run two agents, the question becomes who is doing what. Each epoch has its own
+branch and worktree, so their work never shares files. To make it visible, an agent
+claims an epoch first:
 
 ```sh
 clarity-ctl claim 7
@@ -165,7 +206,8 @@ which records who it was taken from. Claims never expire on their own.
 
 ## Existing projects
 
-Run `clarity-ctl adopt` in a folder that already has work in it.
+Most projects worth this already exist, and they're usually the messiest. Run
+`clarity-ctl adopt` in one.
 
 **If the folder is a git repo**, adopt moves all of it to `workspace/<folder name>/`,
 including history, branches, uncommitted work and ignored files, and sets clarity up
@@ -179,7 +221,8 @@ is for, then proposes where everything goes:
 - **`3rd_party/`**: repos you only use, such as a tool or a benchmark harness.
 - **A baseline epoch**: logs and results from work already done, closed on arrival.
 
-Every move is proposed as a table and waits for your approval.
+Every move is proposed as a table and waits for your approval. The agent sorts the
+mess; you decide.
 
 ## Design principles
 
@@ -188,7 +231,7 @@ Every move is proposed as a table and waits for your approval.
 2. **Only commands write state.** Editing `worklog.yaml` by hand skips the lock that
    keeps concurrent writers safe.
 3. **Nothing is destructive.** Worktrees are removed, but branches never are.
-4. **No model required.** Plain YAML, git and deterministic code.
+4. **No model required.** Plain YAML, git and deterministic code. Judgment stays with you.
 
 ## Development
 
