@@ -232,6 +232,26 @@ def test_refresh_catches_the_branch_up_without_losing_commits(tmp_path):
     assert project.refresh(item.id)[1].endswith("up to date with main")
 
 
+def test_refresh_follows_the_branch_the_checkout_is_on(tmp_path):
+    root = make_repo(tmp_path)
+    git(["checkout", "-qb", "dev"], root)  # the work lives on a long-running branch
+    Project.create(root, name="proj")
+    project = Project.find(root)
+    item = project.add("cache warmup", status="planned")
+    project.start(item.id)
+
+    # dev moves on; main never does
+    worktree = project.folder_of(item) / "wt" / root.name
+    (root / "later.txt").write_text("more\n")
+    git(["add", "later.txt"], root)
+    git(["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "later"], root)
+
+    assert "behind dev" in project.stale_map()[item.id]
+    _, message = project.refresh(item.id)
+    assert "caught up with dev" in message, message
+    assert (worktree / "later.txt").exists()
+
+
 def test_refresh_refuses_a_dirty_worktree(tmp_path):
     root = make_repo(tmp_path)
     Project.create(root, name="proj")

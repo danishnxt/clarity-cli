@@ -102,6 +102,19 @@ def default_branch(root: Path) -> str | None:
     return None
 
 
+def base_branch(root: Path) -> str | None:
+    """The branch an epoch catches up with: whatever the repo's own checkout is on.
+
+    Work often lives on a long-running branch rather than main, and the checkout
+    is where that choice is visible. A detached HEAD names no branch, so it falls
+    back to main or master.
+    """
+    current = current_branch(root)
+    if current and current != "HEAD":
+        return current
+    return default_branch(root)
+
+
 def ahead_behind(root: Path, branch: str, base: str) -> tuple[int, int]:
     """(ahead, behind) of `branch` relative to `base`."""
     out = _run(["rev-list", "--left-right", "--count", f"{base}...{branch}"], root)

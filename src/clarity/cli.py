@@ -199,7 +199,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_status = _leaf(sub, "status", "print what's in flight and what's next",
                      "Prints only; it never writes. The view is composed on every run "
                      "from the worklog plus what is true on this machine right now — "
-                     "who holds a lease, and how far each branch trails main. None of "
+                     "who holds a lease, and how far each branch trails its base. None of "
                      "that is written down, so none of it can go stale.", section=look)
     p_status.add_argument("--all", action="store_true",
                           help="include closed and dropped items")
@@ -302,9 +302,10 @@ def build_parser() -> argparse.ArgumentParser:
     _id_arg(p_reopen, "the closed epoch")
     p_reopen.add_argument("--branch", help="use this branch instead of the recorded one")
 
-    p_refresh = _leaf(epoch, "refresh", "catch the epoch branch up with main",
+    p_refresh = _leaf(epoch, "refresh", "catch the epoch branch up with its base",
                       into=epoch_rows,
-                      description="Merges main (or master) into the epoch's branch, in its "
+                      description="Merges the branch each repo's own checkout is on (main or "
+                      "master if it is detached) into the epoch's branch, in its "
                       "own worktree. Nothing is deleted and no commit is discarded, so a "
                       "refresh cannot lose work. Refuses on a dirty worktree, and aborts "
                       "the merge on conflict rather than leaving it half-done.")

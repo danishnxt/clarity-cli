@@ -580,7 +580,7 @@ class Project:
         return not exists, warnings
 
     def refresh(self, item_id: int | None = None) -> tuple[Item, str]:
-        """Bring the base branch into an in-flight epoch's branch, in every repo it has.
+        """Bring each repo's checked-out branch into an in-flight epoch's branch.
 
         Merges rather than recreating: the branch keeps its identity and its commits,
         so a refresh can never lose work. Deleting branches is a separate question.
@@ -602,9 +602,12 @@ class Project:
         bases: set[str] = set()
         for repo, _ in targets:
             where = "" if repo == self.root else f" in {repo.relative_to(self.root)}"
-            base = gitops.default_branch(repo)
+            base = gitops.base_branch(repo)
             if not base:
-                raise ClarityError(f"no main or master branch to refresh from{where}", code=4)
+                raise ClarityError(
+                    f"no branch checked out, and no main or master, to refresh from{where}",
+                    code=4,
+                )
             if item.branch == base:
                 raise ClarityError(f"epoch {item.id} is on {base} already{where}", code=4)
             worktree = gitops.worktree_path_for(repo, item.branch)
@@ -642,7 +645,7 @@ class Project:
     def _behind(self, branch: str, repo: Path | None = None) -> tuple[str, int, int] | None:
         """(base, ahead, behind) when `branch` trails its base, else None."""
         repo = repo or self.root
-        base = gitops.default_branch(repo)
+        base = gitops.base_branch(repo)
         if not base or base == branch:
             return None
         try:
@@ -666,7 +669,7 @@ class Project:
     def stale_map(self) -> dict[int, str]:
         """Short 'behind' notes for in-flight epochs, for the status page.
 
-        The start-time warning fires once, when the worktree is created; main moves on
+        The start-time warning fires once, when the worktree is created; the base moves on
         afterwards and nothing said so. This is what keeps saying it.
         """
         out: dict[int, str] = {}
