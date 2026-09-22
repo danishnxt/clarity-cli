@@ -50,13 +50,10 @@ def test_idea_to_done(tmp_path):
     item = project.add("flaky test", type_="fix")
     assert item.status == "idea" and item.folder is None
 
-    project.promote(item.id)
-    assert Project.find(root).worklog.by_id(item.id).status == "planned"
-    assert (root / project.worklog.by_id(item.id).folder).is_dir()
-
-    project.start(item.id)
+    project.start(item.id)  # straight from idea: the folder comes with the start
     started = project.worklog.by_id(item.id)
     assert started.status == "active"
+    assert (root / started.folder).is_dir()
     assert started.branch == f"epoch/{item.id:03d}-flaky-test"
     assert (root / started.folder / "wt" / root.name).is_dir()
 

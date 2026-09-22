@@ -261,16 +261,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     _leaf(idea, "list", "show ideas and anything planned but not started", into=idea_rows)
 
-    _leaf(idea, "promote",
-          "give an idea its folder now, so you can put files in it before starting",
-          "Creates EPOCHS/NNN_date__slug and marks the idea `planned`. No branch, no "
-          "worktree, no lease — nothing is started.\n\n"
-          "Use it when you want somewhere to drop notes, data or a sketch before the "
-          "work begins. If you're starting now, skip it: `clarity-ctl epoch start <id>` "
-          "takes an idea straight to active and makes the folder anyway.",
-          into=idea_rows,
-          ).add_argument("id", metavar="<id>", help="the idea to promote")
-
     # ---- epochs ----
     epoch_rows: list = []
     p_epoch = _leaf(sub, "epoch", "a unit of work: one feature, fix or experiment",
@@ -520,16 +510,11 @@ def run(args) -> int:
             emit(args, "idea.add", item.to_dict(),
                  f"idea {item.id}: {item.name}\n"
                  f"  start it with: clarity-ctl epoch start {item.id}")
-        elif action == "list":
+        else:
             human = "\n".join(
                 _item_line(i) for i in project.worklog.with_status({"idea", "planned"})
             ) or "no ideas yet — clarity-ctl idea add \"...\""
             emit(args, "idea.list", project.query("future"), human)
-        else:
-            item = project.promote(project.as_id(args.id))
-            emit(args, "idea.promote", item.to_dict(),
-                 f"{item.id} promoted to planned — {item.folder}\n"
-                 f"  begin work with: clarity-ctl epoch start {item.id}")
 
     elif args.command == "epoch":
         if action == "new":

@@ -452,16 +452,6 @@ class Project:
         item.folder = str(folder.relative_to(self.root))
         return folder
 
-    def promote(self, item_id: int) -> Item:
-        """idea -> planned: it gets a folder, but no branch and no worktree yet."""
-        with self._write():
-            item = self.worklog.by_id(item_id)
-            if item.status != "idea":
-                raise ClarityError(f"item {item_id} is {item.status}, not an idea", code=4)
-            item.status = "planned"
-            self._make_folder(item)
-        return item
-
     def start(self, item_id: int, branch: str | None = None,
               take_lease: bool = True, reopen: bool = False) -> tuple[Item, list[str]]:
         """planned -> active: resolve a branch to a worktree or a symlink, then lease it.
