@@ -145,8 +145,10 @@ def test_init_refuses_a_code_repo_and_points_at_adopt(tmp_path):
 def test_init_sets_up_a_folder_that_is_not_a_repo(tmp_path):
     root = tmp_path / "fresh"
     root.mkdir()
-    Project.init(root)
+    project = Project.init(root)
     assert (root / "worklog.yaml").exists()
+    assert project.worklog.state_repo and (root / ".git").is_dir()
+    assert "workspace/" in (root / ".gitignore").read_text().splitlines()
 
 
 def test_init_alone_leaves_no_procedure(tmp_path):

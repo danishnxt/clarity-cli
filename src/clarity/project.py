@@ -45,7 +45,7 @@ GITIGNORE_LINES = [
     ".clarity/worklog.lock",
 ]
 
-# Added only when adopt makes the root a repo for clarity's own files. The nested
+# Added only when clarity makes the root a repo for its own files. The nested
 # repos have histories of their own, and a baseline epoch's LOGS/ can run to
 # gigabytes — neither belongs in a repo that holds the worklog.
 STATE_REPO_IGNORES = [
@@ -153,9 +153,19 @@ class Project:
 
     @staticmethod
     def create(root: Path, name: str | None = None, overall: str | None = None) -> "Project":
-        """The layout, wherever `root` is. init and adopt decide whether it should be there."""
+        """The layout, wherever `root` is. init and adopt decide whether it should be there.
+
+        A root that is not a repo becomes one, for clarity's own files only — else
+        the worklog and every epoch's notes live in no repo at all. Nothing is
+        committed: the worklog only grows, so when to snapshot or share it is the
+        human's call. A root that already is one is a project set up in place,
+        before init refused that; it keeps being branched.
+        """
         root = root.resolve()
         _refuse_existing(root)
+        state_repo = not gitops.is_repo(root)
+        if state_repo:
+            gitops.init(root)
 
         (root / CONFIG_DIR).mkdir(parents=True, exist_ok=True)
         (root / EPOCHS).mkdir(exist_ok=True)
@@ -166,12 +176,15 @@ class Project:
 
         worklog = Worklog.empty(root / WORKLOG)
         worklog.objectives.overall = overall
+        worklog.state_repo = state_repo
         worklog.save()
 
         project = Project(root)
         project.install_agents()
         project.render_views()
         project.ensure_gitignore()
+        if state_repo:
+            project.ensure_gitignore(STATE_REPO_IGNORES)
         return project
 
     @staticmethod
@@ -187,19 +200,13 @@ class Project:
         epochs branch it. Whole, not just what git tracks: an ignored .env or build
         tree left at the root would break the checkout it came from.
 
-        The root then becomes a repo for clarity's own files only — else the worklog
-        and every epoch's notes live in no repo at all. Nothing is committed: the
-        worklog only grows, so when to snapshot or share it is the human's call.
+        Either way the root then becomes a repo for clarity's own files, as at init.
         Returns (project, the procedure's path, where the repo moved or None).
         """
         root = root.resolve()
         _refuse_existing(root)
         moved = _move_repo_aside(root) if gitops.is_repo(root) else None
         project = Project.create(root)
-        gitops.init(project.root)
-        project.ensure_gitignore(STATE_REPO_IGNORES)
-        with project._write():
-            project.worklog.state_repo = True
         if moved:
             project.repo_add(str(root / moved))
         return project, adopt.write_doc(project.root), moved

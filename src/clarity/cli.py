@@ -391,10 +391,12 @@ def _first_run(project) -> str:
     return (
         f"clarity initialised in {project.root}\n\n"
         f"{project.status_text()}\n"
-        "next:\n"
+        "next — your code goes in workspace/, as its own repo:\n"
+        "  git clone <url> workspace/<name>   # or git init one there\n"
+        "  clarity-ctl repo add workspace/<name>\n"
         '  clarity-ctl idea add "the first thing you want to fix"\n'
-        "  clarity-ctl epoch start 1        # -> active: branch, worktree, lease\n"
-        "  clarity-ctl --help               # every command\n"
+        "  clarity-ctl epoch start 1          # -> active: branch, worktree, lease\n"
+        "  clarity-ctl --help                 # every command\n"
     )
 
 
