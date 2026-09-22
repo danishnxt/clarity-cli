@@ -2,8 +2,3 @@
 __pycache__/
 *.egg-info/
 .pytest_cache/
-# clarity
-EPOCHS/*/wt/
-.clarity/cache/
-EPOCHS/*/.lease
-.clarity/worklog.lock
