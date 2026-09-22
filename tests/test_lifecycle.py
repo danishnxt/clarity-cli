@@ -29,7 +29,7 @@ def make_repo(tmp_path: Path) -> Path:
 
 def test_init_creates_layout(tmp_path):
     root = make_repo(tmp_path)
-    project = Project.init(root, name="proj", overall="ship it")
+    project = Project.create(root, name="proj", overall="ship it")
 
     assert (root / "worklog.yaml").exists()
     assert (root / ".clarity" / "config.yaml").exists()
@@ -44,7 +44,7 @@ def test_init_creates_layout(tmp_path):
 
 def test_idea_to_done(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
 
     project = Project.find(root)
     item = project.add("flaky test", type_="fix")
@@ -79,7 +79,7 @@ def test_idea_to_done(tmp_path):
 def test_only_work_in_flight_can_be_blocked(tmp_path):
     """Blocking an idea used to put it in flight with no folder or branch."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
 
     idea = project.add("someday")
@@ -105,7 +105,7 @@ def test_only_work_in_flight_can_be_blocked(tmp_path):
 
 def test_existing_branch_is_symlinked(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
 
     item = project.add("bench baseline", type_="experiment", status="planned")
@@ -118,7 +118,7 @@ def test_existing_branch_is_symlinked(tmp_path):
 
 def test_human_notes_survive_regeneration(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("write docs", status="planned")
 
@@ -134,7 +134,7 @@ def test_human_notes_survive_regeneration(tmp_path):
 
 def test_errors_carry_exit_codes(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
 
     try:
@@ -155,7 +155,7 @@ def test_errors_carry_exit_codes(tmp_path):
 def test_plans_live_in_the_epoch_and_are_listed(tmp_path):
     """Long-form docs sit with the work, and are listed when asked for — not cached."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("cache warmup", status="planned")
 
@@ -174,7 +174,7 @@ def test_plans_live_in_the_epoch_and_are_listed(tmp_path):
 def test_reopen_returns_a_closed_epoch_to_active(tmp_path):
     """Reopening keeps the old outcome in the trail instead of overwriting it."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("cache warmup", status="planned")
     project.start(item.id)
@@ -197,7 +197,7 @@ def test_reopen_returns_a_closed_epoch_to_active(tmp_path):
 
 def test_reopen_warns_when_the_branch_is_behind(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("cache warmup", status="planned")
     project.start(item.id)
@@ -214,7 +214,7 @@ def test_reopen_warns_when_the_branch_is_behind(tmp_path):
 
 def test_refresh_catches_the_branch_up_without_losing_commits(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("cache warmup", status="planned")
     project.start(item.id)
@@ -237,7 +237,7 @@ def test_refresh_catches_the_branch_up_without_losing_commits(tmp_path):
 
 def test_refresh_refuses_a_dirty_worktree(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("cache warmup", status="planned")
     project.start(item.id)
@@ -257,7 +257,7 @@ def test_refresh_refuses_a_dirty_worktree(tmp_path):
 
 def test_closed_seq_orders_same_day_closes(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     first = project.add("first", status="planned")
     second = project.add("second", status="planned")
@@ -280,7 +280,7 @@ def test_closed_seq_orders_same_day_closes(tmp_path):
 
 def test_reclosing_after_reopen_takes_a_fresh_seq(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     old = project.add("old", status="planned")
     recent = project.add("recent", status="planned")
@@ -300,7 +300,7 @@ def test_reclosing_after_reopen_takes_a_fresh_seq(tmp_path):
 
 def test_a_non_conflict_git_failure_is_not_called_a_conflict(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("cache warmup", status="planned")
     project.start(item.id)
@@ -325,7 +325,7 @@ def test_a_note_records_the_time_not_just_the_day(tmp_path):
     from datetime import datetime
 
     root = make_repo(tmp_path)
-    project = Project.init(root)
+    project = Project.create(root)
     item = project.add("a thing", status="planned")
     project.note(item.id, "tried the obvious thing")
 
@@ -338,7 +338,7 @@ def test_a_fresh_note_is_not_nagged_about(tmp_path):
     from clarity import render
 
     root = make_repo(tmp_path)
-    project = Project.init(root)
+    project = Project.create(root)
     item = project.add("a thing", status="active")
     project.note(item.id, "just now")
 
@@ -350,7 +350,7 @@ def test_a_stale_note_on_an_epoch_in_flight_is_surfaced(tmp_path):
     from clarity.model import Note
 
     root = make_repo(tmp_path)
-    project = Project.init(root)
+    project = Project.create(root)
     item = project.add("a thing", status="active")
     item.notes.append(Note(at="2020-01-01 09:00", text="ancient"))
 
@@ -365,7 +365,7 @@ def test_only_work_in_flight_is_nagged(tmp_path):
     from clarity.model import Note
 
     root = make_repo(tmp_path)
-    project = Project.init(root)
+    project = Project.create(root)
     item = project.add("someday")
     item.notes.append(Note(at="2020-01-01 09:00", text="ancient"))
 
@@ -379,7 +379,7 @@ def test_a_date_only_note_still_counts(tmp_path):
     from clarity.model import Note
 
     root = make_repo(tmp_path)
-    project = Project.init(root)
+    project = Project.create(root)
     item = project.add("a thing", status="active")
     item.notes.append(Note(at="2020-01-01", text="written before timestamps"))
 
@@ -391,7 +391,7 @@ def test_a_date_only_note_still_counts(tmp_path):
 def test_rename_changes_the_name_and_nothing_it_points_at(tmp_path):
     """Scope shifts; the title should follow. The folder and branch are paths — they stay."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("cache warmup", status="planned")
     project.start(item.id)
@@ -409,7 +409,7 @@ def test_rename_changes_the_name_and_nothing_it_points_at(tmp_path):
 
 def test_rename_an_idea_and_the_edge_cases(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     idea = project.add("flaky test")
 
@@ -429,7 +429,7 @@ def test_rename_an_idea_and_the_edge_cases(tmp_path):
 def test_an_old_worklog_with_a_now_line_still_loads(tmp_path):
     """`current` was dropped; a worklog that has one loads and loses it on the next write."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj", overall="ship it")
+    Project.create(root, name="proj", overall="ship it")
     path = root / "worklog.yaml"
     path.write_text(path.read_text().replace("overall: ship it",
                                              "overall: ship it\n  current: this week"))

@@ -40,7 +40,7 @@ def writes_during(monkeypatch, fn) -> list[str]:
 def test_a_write_renders_only_the_epoch_that_changed(tmp_path, monkeypatch):
     """The whole point: a note on one epoch must not rewrite the other nineteen."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     for n in range(5):
         project.add(f"epoch {n}", status="planned")
@@ -53,7 +53,7 @@ def test_a_write_renders_only_the_epoch_that_changed(tmp_path, monkeypatch):
 def test_no_status_file_is_written(tmp_path):
     """The status view mixes in leases and git, so it is printed and never stored."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     project.add("something", status="planned")
     assert not (root / "STATUS.md").exists()
@@ -63,7 +63,7 @@ def test_no_status_file_is_written(tmp_path):
 def test_claiming_leaves_nothing_to_go_stale(tmp_path, monkeypatch):
     """A lease is a file. Nothing writes a sentence about it that could disagree."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("work", status="planned")
 
@@ -75,7 +75,7 @@ def test_claiming_leaves_nothing_to_go_stale(tmp_path, monkeypatch):
 def test_an_unchanged_render_does_not_touch_the_file(tmp_path):
     """Byte-identical output must not bump mtime, or watching mtimes is worthless."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("work", status="planned")
     path = root / project.worklog.by_id(item.id).folder / "EPOCH.md"
@@ -88,7 +88,7 @@ def test_an_unchanged_render_does_not_touch_the_file(tmp_path):
 def test_close_records_the_epochs_own_sha(tmp_path):
     """Not the main checkout's HEAD — the work being closed is on the epoch branch."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("work", status="planned")
     project.start(item.id)
@@ -115,7 +115,7 @@ def test_close_records_the_epochs_own_sha(tmp_path):
 def test_a_word_where_an_id_belongs_is_refused_not_crashed(tmp_path, monkeypatch):
     """Every id path goes through as_id, so a typo is exit 4 and never a traceback."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     monkeypatch.chdir(root)
     for argv in (["path", "nope"], ["q", "item", "nope"], ["idea", "promote", "nope"]):
         assert main(argv) == 4
@@ -124,7 +124,7 @@ def test_a_word_where_an_id_belongs_is_refused_not_crashed(tmp_path, monkeypatch
 def test_claim_prints_without_crashing(tmp_path, monkeypatch, capsys):
     """A lease carries no expiry; the CLI must not reach for one."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("work", status="planned")
     monkeypatch.chdir(root)
@@ -136,7 +136,7 @@ def test_claim_prints_without_crashing(tmp_path, monkeypatch, capsys):
 def test_plans_are_listed_when_asked_not_cached(tmp_path):
     """PLANS/ is a directory anyone can drop a file into — no command can know."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("work", status="planned")
     folder = root / project.worklog.by_id(item.id).folder
@@ -149,7 +149,7 @@ def test_plans_are_listed_when_asked_not_cached(tmp_path):
 def test_status_json_shows_what_status_prints(tmp_path):
     """The human sees in-flight and up-next; --json used to return in-flight only."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     idea = project.add("something later")
     started = project.add("in progress", status="planned")
@@ -162,7 +162,7 @@ def test_status_json_shows_what_status_prints(tmp_path):
 def test_rebranching_an_attached_epoch_is_refused(tmp_path):
     """Recording a branch that isn't the one checked out is worse than refusing."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("work", status="planned")
     project.start(item.id)
@@ -177,7 +177,7 @@ def test_rebranching_an_attached_epoch_is_refused(tmp_path):
 def test_every_status_is_reachable(tmp_path):
     """No status exists that no command can set — `archived` used to."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
 
     reached = {"idea"}

@@ -26,6 +26,16 @@ def init(root: Path) -> None:
     _run(["init", "-q"], root)
 
 
+def repair_worktrees(root: Path) -> None:
+    """After the main checkout moves, point its linked worktrees back at it.
+
+    Best effort: the move has already happened, and a worktree git can't find is
+    one `git worktree repair <path>` away, not a reason to fail the whole adopt.
+    """
+    subprocess.run(["git", "worktree", "repair"], cwd=str(root),
+                   capture_output=True, text=True, check=False)
+
+
 def current_branch(root: Path) -> str | None:
     if not is_repo(root):
         return None

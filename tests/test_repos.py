@@ -35,7 +35,7 @@ def make_workspace(tmp_path: Path) -> Path:
     make_checkout(root / "workspace" / "agent")
     make_checkout(root / "workspace" / "harness")
     make_checkout(root / "3rd_party" / "duckdb")
-    Project.init(root, name="ws")
+    Project.create(root, name="ws")
     return root
 
 
@@ -131,7 +131,7 @@ def test_repo_add_refuses_what_it_cannot_branch(tmp_path):
 def test_a_single_repo_worklog_does_not_grow_a_repos_key(tmp_path):
     root = tmp_path / "proj"
     make_checkout(root)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item, _ = project.start(project.add("x", status="planned").id)
     assert item.repos is None
@@ -143,7 +143,7 @@ def test_reopen_after_rename_finds_the_branch_it_had(tmp_path):
     """The slug follows the name; the branch must not, or a reopen makes a new one."""
     root = tmp_path / "proj"
     make_checkout(root)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item, _ = project.start(project.add("cache warmup", status="planned").id)
     branch = item.branch

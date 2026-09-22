@@ -30,7 +30,7 @@ def two_epochs(root: Path) -> tuple[Project, list[int]]:
 def test_write_lock_keeps_concurrent_adds(tmp_path):
     """Five processes adding at once: none may overwrite another's item."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     env = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}
 
     def add(n: int):
@@ -50,7 +50,7 @@ def test_write_lock_keeps_concurrent_adds(tmp_path):
 
 def test_lease_refuses_a_second_holder(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("cache warmup", status="planned")
     folder = root / item.folder
@@ -74,7 +74,7 @@ def test_lease_refuses_a_second_holder(tmp_path):
 def test_an_old_lease_still_stands(tmp_path):
     """Nothing expires on its own — a years-old lease still refuses, and says how old."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("cache warmup", status="planned")
     folder = root / item.folder
@@ -96,7 +96,7 @@ def test_an_old_lease_still_stands(tmp_path):
 
 def test_close_releases_the_lease(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("cache warmup", status="planned")
     project.start(item.id)
@@ -109,7 +109,7 @@ def test_close_releases_the_lease(tmp_path):
 def test_an_id_is_never_inferred(tmp_path, monkeypatch):
     """No cwd, no env var, no "the only active one" — the id is in the command."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project, ids = two_epochs(root)
 
     # inside an epoch's own folder, and inside its worktree
@@ -134,7 +134,7 @@ def test_an_id_is_never_inferred(tmp_path, monkeypatch):
 def test_one_active_epoch_is_still_not_a_default(tmp_path, monkeypatch):
     """The case that silently worked before: one epoch active, no id passed."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("cache warmup", status="planned")
     project.start(item.id)
@@ -149,7 +149,7 @@ def test_our_own_lease_is_not_a_refusal(tmp_path, monkeypatch):
     """Identity is the declared name, not a process — the same agent reclaims freely."""
     monkeypatch.setenv("CLARITY_AGENT", "agent-alpha")
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("cache warmup", status="planned")
     folder = root / item.folder
@@ -168,7 +168,7 @@ def test_our_own_lease_is_not_a_refusal(tmp_path, monkeypatch):
 def test_find_skips_a_worktree_copy_of_the_state(tmp_path, monkeypatch):
     """Inside an epoch worktree, commands must reach the real project, not the copy."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("cache warmup", status="planned")
     project.start(item.id)
@@ -187,7 +187,7 @@ def test_find_skips_a_worktree_copy_of_the_state(tmp_path, monkeypatch):
 def test_a_refused_lease_leaves_nothing_half_started(tmp_path):
     """The claim happens inside the write lock, so a loser writes no state at all."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     project = Project.find(root)
     item = project.add("cache warmup", status="planned")
     folder = root / item.folder

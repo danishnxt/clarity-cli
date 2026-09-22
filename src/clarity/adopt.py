@@ -102,6 +102,12 @@ rest are support.
 Now read whatever the project says about itself: `README.md`, `CLAUDE.md`,
 `AGENTS.md`, and anything matching `*PLAN*.md` or `*NOTES*.md` at the root.
 
+**If the folder was itself a git repo**, `clarity-ctl adopt` has already moved
+all of it to `workspace/<folder name>/` and listed it with `repo add` — its output
+said so. Read those files there instead. That checkout is sorted: skip
+passes one and two for it, and do not reach inside it. What is left at the root
+is only what clarity just wrote.
+
 You are looking for decisions already made — "don't move X", "Y has to stay next
 to Z", a layout someone already argued about. A line like `Don't move duckdb/ or
 eval-fixture/` outranks every rule below it. Quote it back in your proposal so
@@ -214,8 +220,8 @@ Move only the rows that survived. Three rules:
 A nested checkout moves as a whole: its `.git` travels with it and its history
 is untouched. Do not open it, and do not try to merge it into the outer repo.
 
-**If the root was not a git repo**, `clarity-ctl adopt` already made it one, for
-clarity's own files only: its `.gitignore` keeps out `workspace/`, `3rd_party/`
+The root is a git repo now, made by `clarity-ctl adopt` for clarity's own files
+only: its `.gitignore` keeps out `workspace/`, `3rd_party/`
 and every epoch's `LOGS/`, because the nested repos have histories of their own
 and the records can be large. Epochs never branch this repo. Do not commit to
 it — when to snapshot or share the worklog is the human's call.
@@ -233,8 +239,8 @@ From then on, `clarity-ctl epoch start` gives each listed repo the epoch's branc
 and a worktree. Repos in `3rd_party/` stay off the list — nobody changes them,
 so nothing should branch them. `clarity-ctl repo list` shows what you added.
 
-If the project root is itself the one repo and nothing nested is changed, add
-nothing: with no repos listed, epochs branch the root.
+If the folder was itself a repo, adopt already listed it — `clarity-ctl repo
+list` shows it. Nothing more to add unless another repo went to `workspace/`.
 
 ## 7 · The baseline epoch
 

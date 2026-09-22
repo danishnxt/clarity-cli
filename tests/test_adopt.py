@@ -12,6 +12,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from clarity import Project, adopt, agents  # noqa: E402
@@ -22,7 +24,7 @@ from test_lifecycle import make_repo  # noqa: E402
 
 def test_adopt_sets_up_and_leaves_the_procedure(tmp_path):
     root = make_repo(tmp_path)
-    project, doc = Project.adopt(root)
+    project, doc, moved = Project.adopt(root)
 
     assert (root / "worklog.yaml").exists()
     assert doc == root / ".clarity" / "adopt.md"
@@ -33,7 +35,7 @@ def test_adopt_sets_up_and_leaves_the_procedure(tmp_path):
 def test_adopt_refuses_an_existing_project(tmp_path):
     """Re-running would propose items for work the worklog already tracks."""
     root = make_repo(tmp_path)
-    Project.init(root)
+    Project.create(root)
 
     try:
         Project.adopt(root)
@@ -58,7 +60,7 @@ def test_adopt_makes_a_non_repo_root_a_repo_for_clarity_only(tmp_path):
     """git init and ignores, nothing committed — and epochs never branch it."""
     root = tmp_path / "workspace-root"
     (root / "workspace").mkdir(parents=True)
-    project, _ = Project.adopt(root)
+    project, _, _ = Project.adopt(root)
 
     assert (root / ".git").is_dir()
     ignored = (root / ".gitignore").read_text().splitlines()
@@ -75,18 +77,82 @@ def test_adopt_makes_a_non_repo_root_a_repo_for_clarity_only(tmp_path):
     assert "no repo for epochs to branch" in project.status_text()
 
 
-def test_adopt_leaves_an_existing_repo_as_it_was(tmp_path):
-    """A root that is already a repo is code; it keeps being branched."""
+def test_adopt_moves_a_code_repo_aside_whole(tmp_path):
+    """The repo goes to workspace/<name>/ intact — ignored and uncommitted files too."""
     root = make_repo(tmp_path)
-    project, _ = Project.adopt(root)
-    assert not project.worklog.state_repo
-    assert "workspace/" not in (root / ".gitignore").read_text().splitlines()
+    (root / ".gitignore").write_text(".env\n")
+    (root / ".env").write_text("SECRET=1\n")          # ignored: must not be stranded
+    (root / "src" / "main.py").write_text("changed\n")  # uncommitted: must survive
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(root),
+                          capture_output=True, text=True).stdout
+
+    project, _, moved = Project.adopt(root)
+
+    code = root / "workspace" / "proj"
+    assert moved == "workspace/proj"
+    assert (code / ".env").exists() and (code / "src" / "main.py").read_text() == "changed\n"
+    assert subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(code),
+                          capture_output=True, text=True).stdout == head
+    assert not (root / "src").exists()
+    assert project.worklog.state_repo and project.worklog.repos == ["workspace/proj"]
+    assert subprocess.run(["git", "ls-files"], cwd=str(root),
+                          capture_output=True, text=True).stdout == ""
+
+    epoch = project.add("first", status="planned")
+    started, _ = project.start(epoch.id)
+    assert (root / started.folder / "wt" / "proj" / "src" / "main.py").exists()
+
+
+def test_adopt_moves_a_repo_that_has_its_own_workspace(tmp_path):
+    root = make_repo(tmp_path)
+    (root / "workspace").mkdir()
+    (root / "workspace" / "notes.txt").write_text("mine\n")
+    Project.adopt(root)
+    assert (root / "workspace" / "proj" / "workspace" / "notes.txt").exists()
+
+
+def test_adopt_refuses_a_linked_worktree(tmp_path):
+    root = make_repo(tmp_path)
+    linked = tmp_path / "linked"
+    subprocess.run(["git", "worktree", "add", "-q", "-b", "side", str(linked)],
+                   cwd=str(root), check=True, capture_output=True)
+    with pytest.raises(ClarityError) as exc:
+        Project.adopt(linked)
+    assert exc.value.code == 4
+    assert (linked / "src" / "main.py").exists()  # nothing moved
+
+
+def test_adopt_repairs_the_repos_linked_worktrees(tmp_path):
+    root = make_repo(tmp_path)
+    linked = tmp_path / "linked"
+    subprocess.run(["git", "worktree", "add", "-q", "-b", "side", str(linked)],
+                   cwd=str(root), check=True, capture_output=True)
+    Project.adopt(root)
+    status = subprocess.run(["git", "status"], cwd=str(linked),
+                            capture_output=True, text=True)
+    assert status.returncode == 0
+
+
+def test_init_refuses_a_code_repo_and_points_at_adopt(tmp_path):
+    root = make_repo(tmp_path)
+    with pytest.raises(ClarityError) as exc:
+        Project.init(root)
+    assert exc.value.code == 4
+    assert "clarity-ctl adopt" in str(exc.value)
+    assert not (root / ".clarity").exists()
+
+
+def test_init_sets_up_a_folder_that_is_not_a_repo(tmp_path):
+    root = tmp_path / "fresh"
+    root.mkdir()
+    Project.init(root)
+    assert (root / "worklog.yaml").exists()
 
 
 def test_init_alone_leaves_no_procedure(tmp_path):
     """A project with no history to account for should not be told to account for one."""
     root = make_repo(tmp_path)
-    Project.init(root)
+    Project.create(root)
     assert not adopt.pending(root)
 
 

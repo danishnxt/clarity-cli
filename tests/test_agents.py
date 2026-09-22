@@ -81,7 +81,7 @@ def test_remove_leaves_a_stranger_alone(tmp_path):
 
 def test_a_symlink_that_is_not_ours_is_left_alone(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     elsewhere = root / "house-style.md"
     elsewhere.write_text(MINE)
     link = root / "CLAUDE.md"
@@ -94,7 +94,7 @@ def test_a_symlink_that_is_not_ours_is_left_alone(tmp_path):
 
 def test_local_targets_skip_agents_nobody_here_runs(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     names = {p.name for p in agents.local_paths(root)}
 
     assert {"AGENTS.md", "CLAUDE.md"} <= names   # always written
@@ -146,7 +146,7 @@ def test_a_scope_change_is_rewritten_not_duplicated(tmp_path):
 
 def test_install_refreshes_a_stale_block(tmp_path):
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
     path = root / "CLAUDE.md"
     path.write_text(f"{MINE}\n{agents.START}\nstale\n{agents.END}\n")
 
@@ -158,7 +158,7 @@ def test_install_refreshes_a_stale_block(tmp_path):
 def test_claude_imports_agents_instead_of_copying_it(tmp_path):
     """One body of text. Two copies would be two things to keep in step."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj")
+    Project.create(root, name="proj")
 
     agents_md = (root / "AGENTS.md").read_text()
     claude_md = (root / "CLAUDE.md").read_text()
@@ -171,7 +171,7 @@ def test_claude_imports_agents_instead_of_copying_it(tmp_path):
 def test_no_file_carries_a_copy_of_the_objective(tmp_path):
     """The objective lives in worklog.yaml. clarity-ctl status prints it; nothing caches it."""
     root = make_repo(tmp_path)
-    Project.init(root, name="proj", overall="ship the parser")
+    Project.create(root, name="proj", overall="ship the parser")
     project = Project.find(root)
     project.set_objective("ship the parser, then benchmarks")
 

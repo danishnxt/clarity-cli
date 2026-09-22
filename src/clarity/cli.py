@@ -156,7 +156,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_init = _leaf(sub, "init", "create the layout in this folder",
                    "Creates .clarity/, EPOCHS/, worklog.yaml, puts the clarity block in "
                    "AGENTS.md and points CLAUDE.md at it — keeping whatever those files "
-                   "already say. Adds nothing to your source.", section=setup)
+                   "already say. Refuses inside a git repo: clarity's files stay out of "
+                   "your code, and adopt is the command that moves the code aside.",
+                   section=setup)
     p_init.add_argument("--name", help="project name (default: this folder's name)")
     p_init.add_argument("--objective", help="the overall objective — what this project is for")
 
@@ -167,8 +169,10 @@ def build_parser() -> argparse.ArgumentParser:
           "workspace/, repos you only use go to 3rd_party/, and logs and results from "
           "work already done go into a baseline epoch, closed on arrival. The "
           "workspace/ repos are listed with `clarity-ctl repo add`, so epochs branch "
-          "them. A root that is not a git repo becomes one, for clarity's own files "
-          "only, with nothing committed.\n\n"
+          "them.\n\n"
+          "If the folder is itself a git repo, adopt first moves all of it, .git "
+          "included, to workspace/<folder name>/ and lists it. Either way the root "
+          "becomes a repo for clarity's own files only, with nothing committed.\n\n"
           "The moves are proposed as a table and wait for your yes, because moving a "
           "build tree or a virtualenv costs a rebuild. Nothing in flight is added to "
           "the worklog — what you are working on now stays yours to write down. Point "
@@ -394,11 +398,15 @@ def _first_run(project) -> str:
     )
 
 
-def _adopt_text(project, doc: Path) -> str:
+def _adopt_text(project, doc: Path, moved: str | None) -> str:
     rel = doc.relative_to(project.root)
     return (
         f"clarity initialised in {project.root}\n"
-        f"this folder has files in it that predate clarity, and the root is now "
+        + (f"\nthis folder was a git repo, so all of it moved to {moved}/ — history,\n"
+           f"branches and uncommitted work intact. Push from there from now on.\n"
+           f"Anything that recorded an absolute path, like a virtualenv, needs a rebuild.\n\n"
+           if moved else "")
+        + f"this folder has files in it that predate clarity, and the root is now "
         f"clarity's\n\n"
         f"wrote {rel}: the procedure for tidying that up. It starts by asking\n"
         f"what the project is for. Repos you change go under workspace/, repos\n"
@@ -409,9 +417,8 @@ def _adopt_text(project, doc: Path) -> str:
         f'  "read {rel} and follow it"\n\n'
         f"Nothing in flight is added to the worklog. What you are working on now\n"
         f"stays yours to write down afterwards, a line at a time.\n"
-        + ("\nthe root was not a git repo, so it is one now — for clarity's own files\n"
-           "only. Nothing is committed; commit it when you want to keep or share it.\n"
-           if project.worklog.state_repo else "")
+        + "\nthe root is a git repo now, for clarity's own files only. Nothing is\n"
+          "committed; commit it when you want to keep or share it.\n"
     )
 
 
@@ -451,10 +458,11 @@ def run(args) -> int:
         return 0
 
     if args.command == "adopt":
-        project, doc = Project.adopt(Path.cwd())
+        project, doc, moved = Project.adopt(Path.cwd())
         emit(args, "adopt",
-             {"root": str(project.root), "doc": str(doc.relative_to(project.root))},
-             _adopt_text(project, doc))
+             {"root": str(project.root), "doc": str(doc.relative_to(project.root)),
+              "moved": moved},
+             _adopt_text(project, doc, moved))
         return 0
 
     # A global install is about the user's own agent files, not about any one

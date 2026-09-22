@@ -55,6 +55,47 @@ STATE_REPO_IGNORES = [
 ]
 
 
+WORKSPACE = "workspace"
+
+
+def _refuse_existing(root: Path) -> None:
+    if (root / CONFIG_DIR).is_dir() and (root / WORKLOG).exists():
+        raise ClarityError(f"{root} is already a clarity project", code=4)
+
+
+def _move_repo_aside(root: Path) -> str:
+    """Everything in `root`, .git included, into workspace/<root's name>/.
+
+    Through a staging folder, so a repo that already has a workspace/ of its own
+    moves like anything else. A failure part-way puts back what already moved:
+    half a checkout at the root and half under workspace/ is worse than either.
+    """
+    if not (root / ".git").is_dir():
+        raise ClarityError(
+            f"{root} is a linked worktree or a submodule — adopt the main checkout",
+            code=4)
+    rel = f"{WORKSPACE}/{root.name}"
+    staging = root / f".clarity-adopt-{os.getpid()}"
+    staging.mkdir()
+    done: list[str] = []
+    try:
+        for entry in sorted(os.listdir(root)):
+            if entry != staging.name:
+                os.rename(root / entry, staging / entry)
+                done.append(entry)
+        (root / WORKSPACE).mkdir()
+        os.rename(staging, root / rel)
+    except OSError as exc:
+        if (root / WORKSPACE).is_dir() and not os.listdir(root / WORKSPACE):
+            (root / WORKSPACE).rmdir()
+        for entry in reversed(done):
+            os.rename(staging / entry, root / entry)
+        staging.rmdir()
+        raise ClarityError(f"could not move the repo to {rel}: {exc}", code=1)
+    gitops.repair_worktrees(root / rel)  # linked worktrees point at the old .git
+    return rel
+
+
 def _inside_worktree(path: Path) -> bool:
     """True for a path under EPOCHS/<epoch>/wt/.
 
@@ -94,9 +135,27 @@ class Project:
 
     @staticmethod
     def init(root: Path, name: str | None = None, overall: str | None = None) -> "Project":
+        """A new project in `root`, which must not be a repo of code.
+
+        Clarity's files in the same repo as the code means pushing the code pushes
+        the worklog and every epoch with it. adopt moves the code aside first.
+        """
         root = root.resolve()
-        if (root / CONFIG_DIR).is_dir() and (root / WORKLOG).exists():
-            raise ClarityError(f"{root} is already a clarity project", code=4)
+        _refuse_existing(root)
+        if gitops.is_repo(root):
+            raise ClarityError(
+                f"{root} is a git repo — clarity keeps its files out of your code\n"
+                f"  did you mean: clarity-ctl adopt\n"
+                f"  it moves this repo to {WORKSPACE}/{root.name}/ and sets up beside it",
+                code=4,
+            )
+        return Project.create(root, name=name, overall=overall)
+
+    @staticmethod
+    def create(root: Path, name: str | None = None, overall: str | None = None) -> "Project":
+        """The layout, wherever `root` is. init and adopt decide whether it should be there."""
+        root = root.resolve()
+        _refuse_existing(root)
 
         (root / CONFIG_DIR).mkdir(parents=True, exist_ok=True)
         (root / EPOCHS).mkdir(exist_ok=True)
@@ -116,25 +175,34 @@ class Project:
         return project
 
     @staticmethod
-    def adopt(root: Path) -> tuple["Project", Path]:
+    def adopt(root: Path) -> tuple["Project", Path, str | None]:
         """init, plus the procedure for accounting for work that predates it.
 
         Refuses an existing clarity project for the same reason `init` does: the
         worklog already describes this repo, and a second pass over it would
         propose items for work that is already tracked.
 
-        A root that is not a repo becomes one, for clarity's own files only — else
-        the worklog and every epoch's notes live in no repo at all. Nothing is
-        committed: the worklog only grows, so when to snapshot or share it is the
-        human's call, not something to do on every command.
+        A root that is itself a repo of code moves whole into workspace/<name>/ —
+        the same as `mv` into a parent folder, done in place — and is listed, so
+        epochs branch it. Whole, not just what git tracks: an ignored .env or build
+        tree left at the root would break the checkout it came from.
+
+        The root then becomes a repo for clarity's own files only — else the worklog
+        and every epoch's notes live in no repo at all. Nothing is committed: the
+        worklog only grows, so when to snapshot or share it is the human's call.
+        Returns (project, the procedure's path, where the repo moved or None).
         """
-        project = Project.init(root)
-        if not gitops.is_repo(project.root):
-            gitops.init(project.root)
-            project.ensure_gitignore(STATE_REPO_IGNORES)
-            with project._write():
-                project.worklog.state_repo = True
-        return project, adopt.write_doc(project.root)
+        root = root.resolve()
+        _refuse_existing(root)
+        moved = _move_repo_aside(root) if gitops.is_repo(root) else None
+        project = Project.create(root)
+        gitops.init(project.root)
+        project.ensure_gitignore(STATE_REPO_IGNORES)
+        with project._write():
+            project.worklog.state_repo = True
+        if moved:
+            project.repo_add(str(root / moved))
+        return project, adopt.write_doc(project.root), moved
 
     # ---------- paths ----------
 
