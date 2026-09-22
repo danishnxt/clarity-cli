@@ -130,6 +130,32 @@ agent tell it to write one the moment a decision changes, not at the end. In a l
 session the end never comes, and the notes are what the next session has instead of the
 conversation.
 
+## Between sessions
+
+The usual fix for catching up is a handoff file: ask the agent to dump a
+`work_so_far.md` when the session ends, and point the next session at it. It works, up
+to a point. It only exists if the session ends cleanly, it's written from memory at the
+moment the agent is most likely to have lost track, and each one describes the whole
+project, so they grow until nobody reads them.
+
+Clarity doesn't replace that file, but it takes most of the weight off it:
+
+- **The record is written as you go.** Notes land the moment a decision changes, so a
+  session that crashes or gets its history compacted leaves its notes behind.
+- **Work comes in smaller pieces.** Epochs nudge you to start one thing, finish it,
+  and write down the rest as ideas. A new session starts from "epoch 7, these notes",
+  not from the whole project.
+- **Starting is one command.** `clarity-ctl status`, then `clarity-ctl q item 7`, and
+  the agent knows what's in flight and what was tried, without re-reading the tree.
+
+A handoff still has a place for what doesn't fit in one line, like open questions or
+a plan for tomorrow. Put it in the epoch's `PLANS/` folder, where it stays with the
+work it describes.
+
+The record is only as good as the notes that get written. The rules tell your agent to
+write them, but in a fast session it can still forget, so it's worth a glance at
+`clarity-ctl q item <id>` before you close an epoch.
+
 ## What's on disk
 
 You should be able to open the folder and see what happened, without asking anyone,
