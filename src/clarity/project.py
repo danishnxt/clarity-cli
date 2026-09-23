@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import difflib
 import os
 from contextlib import contextmanager
 from pathlib import Path
@@ -421,6 +422,49 @@ class Project:
             self.worklog.repos.remove(rel)
         return list(self.worklog.repos)
 
+    def pick_repos(self, wanted: list[str]) -> list[str]:
+        """The listed repos `wanted` names, in list order.
+
+        Each name is a listed path, a folder name, or a prefix of exactly one folder
+        name — folder names are unique, so that is never ambiguous. Nothing looser
+        picks: a fuzzy guess that is wrong would branch the wrong repo, silently.
+        Close matches only ever appear in the refusal.
+        """
+        listed = self.worklog.repos
+        if not listed:
+            raise ClarityError(
+                "no repos listed — epochs here branch the project root, so there is "
+                "nothing to pick with --repo", code=4)
+        names = {Path(r).name: r for r in listed}
+        picked: set[str] = set()
+        for raw in wanted:
+            name = raw.strip().rstrip("/")
+            if name in listed or name in names:
+                picked.add(names.get(name, name))
+                continue
+            try:
+                rel = self._repo_rel(name)
+            except ClarityError:
+                rel = None
+            if rel in listed:
+                picked.add(rel)
+                continue
+            prefixed = [r for n, r in names.items() if n.startswith(name)] if name else []
+            if len(prefixed) == 1:
+                picked.add(prefixed[0])
+                continue
+            if prefixed:
+                raise ClarityError(
+                    f"{raw!r} could be any of: {', '.join(prefixed)} — say more of it",
+                    code=4)
+            close = difflib.get_close_matches(name, [*names, *listed], n=3)
+            hint = f" — did you mean {' or '.join(close)}?" if close else ""
+            raise ClarityError(
+                f"{raw!r} is not a listed repo{hint}\n"
+                f"  listed: {', '.join(listed)}\n"
+                f"  list another with: clarity-ctl repo add <path>", code=4)
+        return [r for r in listed if r in picked]
+
     # ---------- items ----------
 
     def add(self, name: str, type_: str = "feature", description: str | None = None,
@@ -453,15 +497,26 @@ class Project:
         return folder
 
     def start(self, item_id: int, branch: str | None = None,
-              take_lease: bool = True, reopen: bool = False) -> tuple[Item, list[str]]:
+              take_lease: bool = True, reopen: bool = False,
+              repos: list[str] | None = None) -> tuple[Item, list[str]]:
         """planned -> active: resolve a branch to a worktree or a symlink, then lease it.
 
         A closed epoch needs `reopen`, so picking work back up is deliberate rather
         than a typo that quietly reanimates something you finished last month.
+
+        `repos` narrows which listed repos a new epoch branches; left out, it gets
+        all of them. On an epoch that already has repos it adds to them, on the same
+        branch. It never removes one: that would mean tearing down a worktree
+        someone may be sitting in.
         """
         warnings: list[str] = []
         with self._write():
             item = self.worklog.by_id(item_id)
+            chosen = self.pick_repos(repos) if repos else None
+            if chosen and item.repos is None and item.branch is not None:
+                raise ClarityError(
+                    f"epoch {item.id} branched the project root before repos were "
+                    f"listed — it has no repo list to add to", code=4)
             closed = item.status in CLOSED
             if closed and not reopen:
                 raise ClarityError(
@@ -483,8 +538,11 @@ class Project:
             if take_lease:
                 lease.claim(folder, label=item.name)
             if item.repos is None and item.branch is None and self.worklog.repos:
-                # first time this epoch touches git: take the project's list as it is now
-                item.repos = list(self.worklog.repos)
+                # first time this epoch touches git: the repos asked for, else the
+                # project's whole list as it is now
+                item.repos = chosen or list(self.worklog.repos)
+            elif chosen:
+                item.repos = [*item.repos, *(r for r in chosen if r not in item.repos)]
             targets = self._targets(item, folder)
             if targets:
                 item.branch, warnings = self._attach_all(item, targets, branch)

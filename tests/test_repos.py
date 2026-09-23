@@ -153,3 +153,57 @@ def test_reopen_after_rename_finds_the_branch_it_had(tmp_path):
     reopened, _ = Project.find(root).start(item.id, reopen=True)
     assert reopened.branch == branch
     assert gitops.current_branch(root / reopened.folder / "wt" / "proj") == branch
+
+
+def test_repo_picks_which_repos_an_epoch_branches(tmp_path):
+    root = make_workspace(tmp_path)
+    project = Project.find(root)
+    for name in ("agent", "harness"):
+        project.repo_add(str(root / "workspace" / name))
+
+    item, _ = project.start(project.add("x", status="planned").id, repos=["harn"])
+    assert item.repos == ["workspace/harness"]
+    assert (root / item.folder / "wt" / "harness").is_dir()
+    assert not (root / item.folder / "wt" / "agent").exists()
+    assert not gitops.branch_exists(root / "workspace" / "agent", item.branch)
+
+    # mid-flight: the same branch in the new repo, the old worktree untouched
+    item, _ = Project.find(root).start(item.id, repos=["workspace/agent"])
+    assert item.repos == ["workspace/harness", "workspace/agent"]  # in the order added
+    assert gitops.current_branch(root / item.folder / "wt" / "agent") == item.branch
+
+    closed = Project.find(root).close(item.id, outcome="done")
+    assert set(closed.extra["end_shas"]) == {"workspace/agent", "workspace/harness"}
+
+
+def test_repo_refuses_what_it_cannot_pin_down(tmp_path):
+    root = make_workspace(tmp_path)
+    make_checkout(root / "workspace" / "agent-tools")
+    project = Project.find(root)
+    for name in ("agent", "agent-tools", "harness"):
+        project.repo_add(str(root / "workspace" / name))
+
+    # a full folder name wins over being the prefix of a longer one
+    assert project.pick_repos(["agent"]) == ["workspace/agent"]
+    for bad, says in ((["ag"], "could be any of"),
+                      (["harnss"], "did you mean harness"),
+                      (["duckdb"], "not a listed repo")):
+        with pytest.raises(ClarityError) as err:
+            project.pick_repos(bad)
+        assert err.value.code == 4 and says in str(err.value)
+
+    item = project.add("x", status="planned")
+    with pytest.raises(ClarityError):
+        project.start(item.id, repos=["nope"])
+    after = Project.find(root).worklog.by_id(item.id)
+    assert after.status == "planned" and after.repos is None
+
+
+def test_repo_needs_a_list_to_pick_from(tmp_path):
+    root = tmp_path / "proj"
+    make_checkout(root)
+    Project.create(root, name="proj")
+    project = Project.find(root)
+    with pytest.raises(ClarityError) as err:
+        project.start(project.add("x", status="planned").id, repos=["proj"])
+    assert "no repos listed" in str(err.value)

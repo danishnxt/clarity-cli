@@ -135,6 +135,15 @@ def _id_arg(node, what: str = "the epoch"):
     node.add_argument("id", help=f"id of {what}")
 
 
+
+def _repo_arg(parser) -> None:
+    parser.add_argument(
+        "--repo", action="append", metavar="<name>", dest="repos",
+        help="branch only this listed repo — its path, folder name, or a unique "
+             "prefix of it; repeat for more. Default: every listed repo. On an "
+             "epoch already in flight, adds the repo on the same branch")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = _Parser(
         prog="clarity-ctl",
@@ -280,9 +289,12 @@ def build_parser() -> argparse.ArgumentParser:
                     description=
                     "Takes an idea or a planned item straight to active. Creates "
                     "epoch/NNN-slug unless --branch names one; if that branch is already "
-                    "checked out somewhere, wt/ symlinks to it instead of adding a worktree.")
+                    "checked out somewhere, wt/ symlinks to it instead of adding a worktree. "
+                    "Every listed repo is branched unless --repo picks some; run it again "
+                    "with --repo on an epoch in flight to add a repo.")
     _id_arg(p_start, "the item to start")
     p_start.add_argument("--branch", help="use this branch instead of epoch/NNN-slug")
+    _repo_arg(p_start)
 
     p_block = _leaf(epoch, "block", "park it, recording what you're waiting on",
                     into=epoch_rows)
@@ -301,6 +313,7 @@ def build_parser() -> argparse.ArgumentParser:
                      "when you closed it.")
     _id_arg(p_reopen, "the closed epoch")
     p_reopen.add_argument("--branch", help="use this branch instead of the recorded one")
+    _repo_arg(p_reopen)
 
     p_refresh = _leaf(epoch, "refresh", "catch the epoch branch up with its base",
                       into=epoch_rows,
@@ -525,7 +538,8 @@ def run(args) -> int:
                  f"epoch {item.id} — {item.folder}\n"
                  f"  begin work with: clarity-ctl epoch start {item.id}")
         elif action == "start":
-            item, warnings = project.start(project.resolve_id(args.id), branch=args.branch)
+            item, warnings = project.start(project.resolve_id(args.id), branch=args.branch,
+                                           repos=args.repos)
             if args.json:
                 print(envelope("epoch.start", item.to_dict(), warnings))
             else:
@@ -535,7 +549,7 @@ def run(args) -> int:
                 print("\n".join(lines))
         elif action == "reopen":
             item, warnings = project.start(project.resolve_id(args.id), branch=args.branch,
-                                           reopen=True)
+                                           reopen=True, repos=args.repos)
             if args.json:
                 print(envelope("epoch.reopen", item.to_dict(), warnings))
             else:
